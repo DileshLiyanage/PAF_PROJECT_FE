@@ -6,26 +6,26 @@ function Badge({ status, text }) {
     switch(status) {
       case 'active':
       case 'Active':
-        return 'bg-emerald-100 text-emerald-800';
+        return 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm';
       case 'inactive':
       case 'Inactive':
-        return 'bg-rose-100 text-rose-800';
+        return 'bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-sm';
       case 'pending':
       case 'Pending':
-        return 'bg-amber-100 text-amber-800';
+        return 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm';
       case 'ADMIN':
-        return 'bg-[#4A7FA7] text-white';
+        return 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-sm';
       case 'TECHNICIAN':
-        return 'bg-[#B3CFE5] text-[#0A1931]';
+        return 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm';
       case 'USER':
-        return 'bg-[#1A3D63] text-[#F6FAFD]';
+        return 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-sm';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-sm';
     }
   };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStyles(status)}`}>
+    <span className={`px-3 py-1.5 rounded-xl text-xs font-semibold tracking-wide ${getStyles(status)}`}>
       {text || status}
     </span>
   );

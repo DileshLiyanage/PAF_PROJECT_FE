@@ -5,6 +5,7 @@ import Register      from './pages/Register';
 import OAuthCallback from './pages/OAuthCallback';
 import Dashboard     from './pages/Dashboard';
 import AdminPanel    from './pages/AdminPanel';
+import Profile       from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -26,6 +27,12 @@ function App() {
         <Route path="/dashboard" element={
           <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
             <Dashboard />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/profile" element={
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+            <Profile />
           </ProtectedRoute>
         } />
 
