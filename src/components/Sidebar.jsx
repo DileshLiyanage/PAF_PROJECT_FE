@@ -25,6 +25,7 @@ function Sidebar({ user }) {
     { label: 'Tasks', icon: <FiCheckSquare />, path: '#', roles: ['ADMIN', 'TECHNICIAN'], color: 'from-jordy-blue to-ylnmn-blue' },
     { label: 'Analytics', icon: <FiBarChart2 />, path: '#', roles: ['ADMIN'], color: 'from-ylnmn-blue to-lavender' },
     { label: 'Messages', icon: <FiMessageSquare />, path: '#', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-lavender to-jordy-blue' },
+    { label: 'My Tickets', icon: <FiCheckSquare />, path: '/tickets', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-red-500 to-orange-500' },
     { label: 'Settings', icon: <FiSettings />, path: '#', roles: ['ADMIN'], color: 'from-space-cadet to-oxford' },
   ];
 

@@ -8,6 +8,11 @@ import AdminPanel    from './pages/AdminPanel';
 import Profile       from './pages/Profile';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// ==================== MEMBER 3 - MODULE C TICKETS ====================
+import TicketCreate from './pages/tickets/TicketCreate';
+import TicketList   from './pages/tickets/TicketList';
+import TicketDetail from './pages/tickets/TicketDetail';
+
 function App() {
   return (
     <BrowserRouter>
@@ -41,6 +46,27 @@ function App() {
             <AdminPanel />
           </ProtectedRoute>
         } />
+
+{/* ==================== MODULE C - INCIDENT TICKETS (Member 3) ==================== */}
+        <Route path="/tickets" element={
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+            <TicketList />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/tickets/create" element={
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+            <TicketCreate />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/tickets/:id" element={
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+            <TicketDetail />
+          </ProtectedRoute>
+        } />
+        {/* ================================================================== */}
+
       </Routes>
     </BrowserRouter>
   );

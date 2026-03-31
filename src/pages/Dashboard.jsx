@@ -218,6 +218,12 @@ function Dashboard() {
                   <button className="w-full py-3 px-4 bg-gradient-to-r from-ylnmn-blue to-space-cadet hover:from-space-cadet hover:to-ylnmn-blue text-lavender rounded-xl font-semibold transition-all transform hover:scale-105 flex items-center justify-center gap-2">
                     💡 Submit Feedback
                   </button>
+                  <button
+                    onClick={() => window.location.href = '/tickets/create'}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-xl font-semibold transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                  >
+                    🚨 Report Incident
+                  </button>
                 </div>
               </div>
 
