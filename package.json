@@ -1,0 +1,39 @@
+{
+  "name": "paf_project_fe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PAF project front-end",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DileshLiyanage/PAF_PROJECT_FE.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DileshLiyanage/PAF_PROJECT_FE/issues"
+  },
+  "homepage": "https://github.com/DileshLiyanage/PAF_PROJECT_FE#readme",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.14.1",
+    "react-scripts": "^5.0.1",
+    "axios": "^1.4.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
