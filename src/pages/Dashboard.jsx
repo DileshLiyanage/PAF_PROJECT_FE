@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import Badge from '../components/Badge';
 import axiosInstance from '../api/axiosInstance';
 import { getRole } from '../utils/auth';
-import { FiBookOpen, FiCheckCircle, FiClock, FiAward, FiCalendar, FiCode, FiBriefcase, FiCpu } from 'react-icons/fi';
+import { FiBookOpen, FiCheckCircle, FiClock, FiAward, FiCode, FiBriefcase, FiCpu } from 'react-icons/fi';
 
 function Dashboard() {
   const [user, setUser] = useState(null);
