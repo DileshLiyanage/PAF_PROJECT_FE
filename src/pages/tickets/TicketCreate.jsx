@@ -15,6 +15,114 @@ const CATEGORY_TREE = {
   }
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^(\+94|0)\d{9}$/;
+
+const formatLabel = (value) =>
+  value
+    .toLowerCase()
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+
+const GlassSelect = ({ children, className = '', ...props }) => (
+  <div className="relative">
+    <select
+      {...props}
+      className={`w-full appearance-none rounded-xl border border-white/40 bg-white/20 px-3 py-3 pr-10 text-sm text-white outline-none shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] backdrop-blur-md transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+    >
+      {children}
+    </select>
+    <svg
+      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/90"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  </div>
+);
+
+const InFlowGlassDropdown = ({
+  value,
+  placeholder,
+  options,
+  onSelect,
+  disabled = false,
+  formatOption,
+  onBlur,
+  name
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleToggle = () => {
+    if (disabled) return;
+    setIsOpen((prev) => !prev);
+  };
+
+  const handleSelect = (option) => {
+    onSelect(option);
+    setIsOpen(false);
+    if (onBlur) onBlur();
+  };
+
+  const handleBlur = () => {
+    if (onBlur) onBlur();
+  };
+
+  return (
+    <div className="w-full">
+      <button
+        type="button"
+        name={name}
+        onClick={handleToggle}
+        onBlur={handleBlur}
+        disabled={disabled}
+        className="flex w-full items-center justify-between rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-left text-sm text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] backdrop-blur-md transition hover:bg-white/25 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        <span>{value ? (formatOption ? formatOption(value) : value) : placeholder}</span>
+        <svg
+          className={`h-4 w-4 text-white/90 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="mt-2 overflow-hidden rounded-xl border border-white/35 bg-white/15 shadow-[0_8px_24px_rgba(15,23,42,0.25)] backdrop-blur-xl">
+          {options.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-white/80">No options available</p>
+          ) : (
+            options.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleSelect(option)}
+                className="block w-full border-b border-white/10 px-3 py-2 text-left text-sm text-white transition last:border-b-0 hover:bg-white/20"
+              >
+                {formatOption ? formatOption(option) : option}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TicketCreate = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -31,6 +139,9 @@ const TicketCreate = () => {
   const [images, setImages] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState({});
 
   const subCategoryOptions = useMemo(() => {
     if (!mainCategory) return [];
@@ -49,69 +160,139 @@ const TicketCreate = () => {
   }, [previewUrls]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const nextState = { ...formData, [e.target.name]: e.target.value };
+    setFormData(nextState);
+    setErrors(validateForm(nextState, mainCategory, subCategory, subCategoryItem, images));
   };
 
-  const handleMainCategoryChange = (e) => {
-    const nextMain = e.target.value;
+  const markTouched = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const validateForm = (state, main, sub, item, selectedImages) => {
+    const nextErrors = {};
+
+    if (!main) nextErrors.mainCategory = 'Main category is required.';
+    if (!sub) nextErrors.subCategory = 'Subcategory is required.';
+    if (!item) nextErrors.subCategoryItem = 'Item code is required.';
+    if (!state.description.trim()) {
+      nextErrors.description = 'Description is required.';
+    } else if (state.description.trim().length < 10) {
+      nextErrors.description = 'Description should be at least 10 characters.';
+    }
+
+    if (!state.priority) nextErrors.priority = 'Priority is required.';
+
+    if (!state.contactEmail.trim() && !state.contactPhone.trim()) {
+      nextErrors.contactDetails = 'Provide at least one preferred contact detail.';
+    }
+
+    if (state.contactEmail.trim() && !EMAIL_REGEX.test(state.contactEmail.trim())) {
+      nextErrors.contactEmail = 'Enter a valid email address.';
+    }
+
+    if (state.contactPhone.trim()) {
+      const normalizedPhone = state.contactPhone.replace(/\s+/g, '');
+      if (!PHONE_REGEX.test(normalizedPhone)) {
+        nextErrors.contactPhone = 'Use a valid Sri Lankan number (07XXXXXXXX or +947XXXXXXXX).';
+      }
+    }
+
+    if (selectedImages.length > 3) {
+      nextErrors.images = 'Maximum 3 images allowed.';
+    }
+
+    return nextErrors;
+  };
+
+  const handleMainCategoryChange = (nextMain) => {
     setMainCategory(nextMain);
     setSubCategory('');
     setSubCategoryItem('');
     setFormData((prev) => ({ ...prev, category: '', resourceId: '' }));
+    setTouched((prev) => ({ ...prev, mainCategory: true, subCategory: false, subCategoryItem: false }));
+    setErrors(validateForm(formData, nextMain, '', '', images));
   };
 
-  const handleSubCategoryChange = (e) => {
-    const nextSub = e.target.value;
+  const handleSubCategoryChange = (nextSub) => {
     setSubCategory(nextSub);
     setSubCategoryItem('');
-    setFormData((prev) => ({
-      ...prev,
+    const nextState = {
+      ...formData,
       category: nextSub ? `${mainCategory}_${nextSub}` : '',
       resourceId: ''
-    }));
+    };
+    setFormData(nextState);
+    setTouched((prev) => ({ ...prev, subCategory: true, subCategoryItem: false }));
+    setErrors(validateForm(nextState, mainCategory, nextSub, '', images));
   };
 
-  const handleSubCategoryItemChange = (e) => {
-    const nextItem = e.target.value;
+  const handleSubCategoryItemChange = (nextItem) => {
     setSubCategoryItem(nextItem);
-    setFormData((prev) => ({ ...prev, resourceId: nextItem }));
+    const nextState = { ...formData, resourceId: nextItem };
+    setFormData(nextState);
+    setTouched((prev) => ({ ...prev, subCategoryItem: true }));
+    setErrors(validateForm(nextState, mainCategory, subCategory, nextItem, images));
   };
 
   const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
+    const files = Array.from(e.target.files || []);
     if (images.length + files.length > 3) {
-      alert('Maximum 3 images allowed!');
+      setTouched((prev) => ({ ...prev, images: true }));
+      setErrors((prev) => ({ ...prev, images: 'Maximum 3 images allowed.' }));
       return;
     }
-    setImages((prev) => [...prev, ...files]);
 
-    const newPreviews = files.map(file => URL.createObjectURL(file));
+    const hasInvalidFile = files.some((file) => !file.type.startsWith('image/'));
+    if (hasInvalidFile) {
+      setTouched((prev) => ({ ...prev, images: true }));
+      setErrors((prev) => ({ ...prev, images: 'Only image files are allowed.' }));
+      return;
+    }
+
+    const nextImages = [...images, ...files];
+    setImages(nextImages);
+
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
     setPreviewUrls((prev) => [...prev, ...newPreviews]);
+    setTouched((prev) => ({ ...prev, images: true }));
+    setErrors(validateForm(formData, mainCategory, subCategory, subCategoryItem, nextImages));
   };
 
   const removeImage = (index) => {
     URL.revokeObjectURL(previewUrls[index]);
-    setImages((prev) => prev.filter((_, i) => i !== index));
+    const nextImages = images.filter((_, i) => i !== index);
+    setImages(nextImages);
     setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
+    setTouched((prev) => ({ ...prev, images: true }));
+    setErrors(validateForm(formData, mainCategory, subCategory, subCategoryItem, nextImages));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError('');
 
-    if (!mainCategory || !subCategory || !subCategoryItem) {
-      alert('Please select category, subcategory, and subcategory item.');
-      return;
-    }
+    const validationErrors = validateForm(formData, mainCategory, subCategory, subCategoryItem, images);
+    setErrors(validationErrors);
+    setTouched({
+      mainCategory: true,
+      subCategory: true,
+      subCategoryItem: true,
+      description: true,
+      priority: true,
+      contactEmail: true,
+      contactPhone: true,
+      images: true
+    });
 
-    if (!formData.contactEmail && !formData.contactPhone) {
-      alert('Please provide at least one preferred contact detail (email or phone).');
+    if (Object.keys(validationErrors).length > 0) {
       return;
     }
 
     setLoading(true);
 
     const data = new FormData();
-    Object.keys(formData).forEach(key => data.append(key, formData[key]));
+    Object.keys(formData).forEach((key) => data.append(key, formData[key]));
 
     images.forEach((image) => {
       data.append('images', image);
@@ -119,16 +300,16 @@ const TicketCreate = () => {
 
     try {
       await axiosInstance.post('/api/tickets', data);
-
-      alert('✅ Ticket created successfully!');
       navigate('/tickets');
     } catch (error) {
       console.error('Ticket creation error:', error);
-      alert('Failed to create ticket. Please make sure you are logged in.');
+      setSubmitError('Failed to create ticket. Please check your details and try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  const showError = (key) => touched[key] && errors[key];
 
   return (
     <div
@@ -143,54 +324,50 @@ const TicketCreate = () => {
           <h1 className="mb-2 text-3xl font-bold text-white md:text-4xl">Create New Incident Ticket</h1>
           <p className="mb-8 text-sm text-slate-100/90">Report resource or location issues with evidence and your preferred contact details.</p>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-white">Main Category</label>
-                <select
+                <InFlowGlassDropdown
+                  name="mainCategory"
                   value={mainCategory}
-                  onChange={handleMainCategoryChange}
-                  required
-                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white outline-none placeholder:text-white/70 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
+                  onSelect={handleMainCategoryChange}
+                  onBlur={() => markTouched('mainCategory')}
+                  placeholder="Select main category"
+                  options={['RESOURCE', 'LOCATION']}
+                  formatOption={(option) => formatLabel(option)}
                 >
-                  <option value="" className="text-slate-900">Select main category</option>
-                  <option value="RESOURCE" className="text-slate-900">Resource</option>
-                  <option value="LOCATION" className="text-slate-900">Location</option>
-                </select>
+                </InFlowGlassDropdown>
+                {showError('mainCategory') && <p className="mt-1 text-xs text-red-200">{errors.mainCategory}</p>}
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-white">Subcategory</label>
-                <select
+                <InFlowGlassDropdown
+                  name="subCategory"
                   value={subCategory}
-                  onChange={handleSubCategoryChange}
-                  required
+                  onSelect={handleSubCategoryChange}
+                  onBlur={() => markTouched('subCategory')}
+                  placeholder="Select subcategory"
+                  options={subCategoryOptions}
+                  formatOption={formatLabel}
                   disabled={!mainCategory}
-                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <option value="" className="text-slate-900">Select subcategory</option>
-                  {subCategoryOptions.map((option) => (
-                    <option key={option} value={option} className="text-slate-900">
-                      {option.replaceAll('_', ' ')}
-                    </option>
-                  ))}
-                </select>
+                />
+                {showError('subCategory') && <p className="mt-1 text-xs text-red-200">{errors.subCategory}</p>}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-white">Item / Code</label>
-                <select
+                <label className="mb-2 block text-sm font-semibold text-white">Item Code</label>
+                <InFlowGlassDropdown
+                  name="itemCode"
                   value={subCategoryItem}
-                  onChange={handleSubCategoryItemChange}
-                  required
+                  onSelect={handleSubCategoryItemChange}
+                  onBlur={() => markTouched('subCategoryItem')}
+                  placeholder="Select item code"
+                  options={itemOptions}
                   disabled={!subCategory}
-                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white outline-none disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <option value="" className="text-slate-900">Select item code</option>
-                  {itemOptions.map((option) => (
-                    <option key={option} value={option} className="text-slate-900">{option}</option>
-                  ))}
-                </select>
+                />
+                {showError('subCategoryItem') && <p className="mt-1 text-xs text-red-200">{errors.subCategoryItem}</p>}
               </div>
             </div>
 
@@ -200,26 +377,29 @@ const TicketCreate = () => {
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
+                onBlur={() => markTouched('description')}
                 required
                 rows="5"
                 placeholder="Describe the issue clearly..."
-                className="w-full rounded-xl border border-white/40 bg-white/20 px-4 py-3 text-sm text-white placeholder:text-white/70 outline-none focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
+                className="w-full resize-none rounded-xl border border-white/40 bg-white/20 px-4 py-3 text-sm text-white placeholder:text-white/70 outline-none backdrop-blur-md focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
               />
+              {showError('description') && <p className="mt-1 text-xs text-red-200">{errors.description}</p>}
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-white">Priority</label>
-                <select
+                <GlassSelect
                   name="priority"
                   value={formData.priority}
                   onChange={handleChange}
-                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white outline-none"
+                  onBlur={() => markTouched('priority')}
                 >
                   <option value="LOW" className="text-slate-900">Low</option>
                   <option value="MEDIUM" className="text-slate-900">Medium</option>
                   <option value="HIGH" className="text-slate-900">High</option>
-                </select>
+                </GlassSelect>
+                {showError('priority') && <p className="mt-1 text-xs text-red-200">{errors.priority}</p>}
               </div>
 
               <div>
@@ -229,9 +409,11 @@ const TicketCreate = () => {
                   name="contactEmail"
                   value={formData.contactEmail}
                   onChange={handleChange}
+                  onBlur={() => markTouched('contactEmail')}
                   placeholder="example@sliit.lk"
-                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white placeholder:text-white/70 outline-none"
+                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white placeholder:text-white/70 outline-none backdrop-blur-md focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
                 />
+                {showError('contactEmail') && <p className="mt-1 text-xs text-red-200">{errors.contactEmail}</p>}
               </div>
 
               <div>
@@ -241,11 +423,17 @@ const TicketCreate = () => {
                   name="contactPhone"
                   value={formData.contactPhone}
                   onChange={handleChange}
+                  onBlur={() => markTouched('contactPhone')}
                   placeholder="07X XXX XXXX"
-                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white placeholder:text-white/70 outline-none"
+                  className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white placeholder:text-white/70 outline-none backdrop-blur-md focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
                 />
+                {showError('contactPhone') && <p className="mt-1 text-xs text-red-200">{errors.contactPhone}</p>}
               </div>
             </div>
+
+            {(touched.contactEmail || touched.contactPhone) && errors.contactDetails && (
+              <p className="-mt-2 text-xs text-red-200">{errors.contactDetails}</p>
+            )}
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-white">Evidence Images (max 3)</label>
@@ -254,8 +442,10 @@ const TicketCreate = () => {
                 multiple
                 accept="image/*"
                 onChange={handleImageChange}
+                onBlur={() => markTouched('images')}
                 className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-cyan-600"
               />
+              {showError('images') && <p className="mt-1 text-xs text-red-200">{errors.images}</p>}
 
               {previewUrls.length > 0 && (
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -275,11 +465,11 @@ const TicketCreate = () => {
               )}
             </div>
 
-            <div className="rounded-xl border border-white/30 bg-white/10 p-3 text-xs text-slate-100">
-              Category will be sent as: <span className="font-semibold">{formData.category || 'Not selected'}</span>
-              <br />
-              Resource/Location code will be sent as: <span className="font-semibold">{formData.resourceId || 'Not selected'}</span>
-            </div>
+            {submitError && (
+              <div className="rounded-xl border border-red-300/40 bg-red-500/15 p-3 text-sm text-red-100">
+                {submitError}
+              </div>
+            )}
 
             <button
               type="submit"
