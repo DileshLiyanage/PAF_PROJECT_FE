@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiHome, FiUser, FiUsers, FiFolder, FiCheckSquare, FiBarChart2, FiMessageSquare, FiSettings, FiLogOut, FiArchive, FiMail, FiUserCheck } from 'react-icons/fi';
-import { removeToken } from '../utils/auth';
+import { getRole, removeToken } from '../utils/auth';
 
 function Sidebar({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const currentRole = String(user?.role || getRole() || '').toUpperCase();
 
   const handleLogout = () => {
     removeToken();
@@ -24,13 +25,13 @@ function Sidebar({ user }) {
     { label: 'Tasks', icon: <FiCheckSquare />, path: '#', roles: ['ADMIN', 'TECHNICIAN'], color: 'from-jordy-blue to-ylnmn-blue' },
     { label: 'Analytics', icon: <FiBarChart2 />, path: '#', roles: ['ADMIN'], color: 'from-ylnmn-blue to-lavender' },
     { label: 'Messages', icon: <FiMessageSquare />, path: '#', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-lavender to-jordy-blue' },
-    { label: 'My Tickets', icon: <FiCheckSquare />, path: '/tickets', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-red-500 to-orange-500' },
-    { label: 'Submitted Tickets', icon: <FiArchive />, path: '/admin/tickets', roles: ['ADMIN', 'TECHNICIAN'], color: 'from-blue-500 to-cyan-500' },
+    { label: 'My Tickets', icon: <FiCheckSquare />, path: '/tickets', roles: ['USER'], color: 'from-red-500 to-orange-500' },
+    { label: 'Submitted Tickets', icon: <FiArchive />, path: '/admin/tickets', roles: ['ADMIN'], color: 'from-blue-500 to-cyan-500' },
     { label: 'Assigned Tickets', icon: <FiUserCheck />, path: '/technician/assigned-tickets', roles: ['TECHNICIAN'], color: 'from-emerald-500 to-cyan-500' },
     { label: 'Settings', icon: <FiSettings />, path: '#', roles: ['ADMIN'], color: 'from-space-cadet to-oxford' },
   ];
 
-  const filteredItems = menuItems;
+  const filteredItems = menuItems.filter((item) => item.roles.includes(currentRole));
 
   const SidebarContent = () => (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">

@@ -84,7 +84,7 @@ const getCurrentUserId = () => {
     const token = getToken();
     if (!token) return null;
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.sub || payload.email || payload.username || null;
+    return payload.email || payload.sub || payload.username || null;
   } catch {
     return null;
   }
@@ -202,7 +202,10 @@ const TicketList = () => {
         let filteredTickets = [...(res.data || [])];
 
         if (isMyTicketsPage && currentUserId) {
-          filteredTickets = filteredTickets.filter((ticket) => ticket.userId === currentUserId);
+          const normalizedUserEmail = String(currentUserId).trim().toLowerCase();
+          filteredTickets = filteredTickets.filter(
+            (ticket) => String(ticket.userId || '').trim().toLowerCase() === normalizedUserEmail
+          );
         }
 
         if (isAssignedTicketsPage) {
@@ -739,8 +742,8 @@ const TicketList = () => {
 
                 <div className="mt-4 space-y-3">
                   {selectedTicket.comments?.length ? (
-                    selectedTicket.comments.map((comment) => {
-                      const canManageComment = currentRole === 'ADMIN' || (currentUserId && comment.userId === currentUserId);
+                    [...selectedTicket.comments].reverse().map((comment) => {
+                      const canManageComment = !!currentUserId && comment.userId === currentUserId;
 
                       return (
                         <div key={comment.id} className="rounded-xl border border-slate-200 bg-white/80 p-3">

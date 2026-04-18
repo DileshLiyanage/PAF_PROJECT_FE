@@ -42,20 +42,20 @@ function App() {
         } />
 
         <Route path="/admin" element={
-          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+          <ProtectedRoute allowedRoles={['ADMIN']}>
             <AdminPanel />
           </ProtectedRoute>
         } />
 
 {/* ==================== MODULE C - INCIDENT TICKETS (Member 3) ==================== */}
         <Route path="/tickets" element={
-          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+          <ProtectedRoute allowedRoles={['USER']}>
             <TicketList />
           </ProtectedRoute>
         } />
 
         <Route path="/tickets/create" element={
-          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+          <ProtectedRoute allowedRoles={['USER']}>
             <TicketCreate />
           </ProtectedRoute>
         } />
@@ -67,13 +67,13 @@ function App() {
         } />
 
         <Route path="/admin/tickets" element={
-          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+          <ProtectedRoute allowedRoles={['ADMIN']}>
             <TicketList />
           </ProtectedRoute>
         } />
 
         <Route path="/technician/assigned-tickets" element={
-          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+          <ProtectedRoute allowedRoles={['TECHNICIAN']}>
             <TicketList />
           </ProtectedRoute>
         } />
