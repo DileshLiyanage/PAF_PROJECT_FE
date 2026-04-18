@@ -3,10 +3,21 @@ import { Link } from 'react-router-dom';
 
 export default function Home(){
   return (
-    <div style={{padding:20}}>
-      <h1>Welcome</h1>
-      <p>This is the PAF Project front-end.</p>
-      <p><Link to="/resources">Browse Resources</Link></p>
+    <div className="page">
+      <div className="container text-center">
+        <h1>Welcome to PAF Project</h1>
+        <p style={{ fontSize: '1.1rem', color: '#666' }}>
+          Explore and manage resources with ease
+        </p>
+        <div className="mt-4">
+          <Link to="/resources" className="btn btn-primary" style={{ marginRight: '10px' }}>
+            Browse Resources
+          </Link>
+          <Link to="/login" className="btn btn-secondary">
+            Login
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
