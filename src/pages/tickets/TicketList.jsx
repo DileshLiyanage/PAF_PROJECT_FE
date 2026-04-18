@@ -53,6 +53,25 @@ const getStatusPillClass = (status) => {
   return 'bg-indigo-100 text-indigo-700 border-indigo-300/70';
 };
 
+const getTicketPageBackground = (isSubmittedTicketsPage, isMyTicketsPage) => {
+  if (isSubmittedTicketsPage) {
+    return "linear-gradient(125deg, rgba(5, 17, 38, 0.86), rgba(25, 58, 105, 0.66)), url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1800&q=80')";
+  }
+
+  if (isMyTicketsPage) {
+    return "linear-gradient(125deg, rgba(4, 18, 41, 0.82), rgba(18, 61, 122, 0.64)), url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1800&q=80')";
+  }
+
+  return "linear-gradient(125deg, rgba(9, 20, 41, 0.76), rgba(33, 87, 141, 0.58)), url('https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1800&q=80')";
+};
+
+const getPriorityFilterClass = (priority, active) => {
+  if (priority === 'LOW') return active ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-emerald-300 bg-emerald-100 text-emerald-700';
+  if (priority === 'MEDIUM') return active ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-300 bg-amber-100 text-amber-700';
+  if (priority === 'HIGH') return active ? 'border-rose-500 bg-rose-500 text-white' : 'border-rose-300 bg-rose-100 text-rose-700';
+  return active ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-slate-100 text-slate-700';
+};
+
 const toDisplayTicketId = (index) => `Ticket${String(index + 1).padStart(4, '0')}`;
 
 const getDisplayTicketIdByRecord = (allTickets, recordId) => {
@@ -96,6 +115,28 @@ const matchesAssignedToUser = (assignedTo, userTokens) => {
   const assigned = String(assignedTo).trim().toLowerCase();
   return userTokens.some((token) => token === assigned);
 };
+
+const modalScrollbarStyles = `
+  .ticket-modal-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .ticket-modal-scroll::-webkit-scrollbar-track {
+    margin-top: 18px;
+    margin-bottom: 18px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .ticket-modal-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgba(100, 116, 139, 0.6);
+  }
+
+  .ticket-modal-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.8);
+  }
+`;
 
 const TicketList = () => {
   const location = useLocation();
@@ -163,7 +204,7 @@ const TicketList = () => {
 
     fetchTickets();
 
-    const intervalId = setInterval(fetchTickets, 10000);
+    const intervalId = setInterval(fetchTickets, 30000);
     return () => clearInterval(intervalId);
   }, [currentUserId, currentUserTokens, isAssignedTicketsPage, isMyTicketsPage]);
 
@@ -315,11 +356,9 @@ const TicketList = () => {
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-no-repeat px-4 py-8 md:px-8"
-      style={{
-        backgroundImage:
-          "linear-gradient(125deg, rgba(9, 20, 41, 0.76), rgba(33, 87, 141, 0.58)), url('https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1800&q=80')"
-      }}
+      style={{ backgroundImage: getTicketPageBackground(isSubmittedTicketsPage, isMyTicketsPage) }}
     >
+      <style>{modalScrollbarStyles}</style>
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 w-full rounded-2xl border border-white/45 bg-white/18 px-6 py-5 shadow-lg backdrop-blur-xl">
           <h1 className="text-3xl font-bold text-white md:text-4xl">
@@ -327,7 +366,7 @@ const TicketList = () => {
           </h1>
           <p className="mt-2 text-sm text-slate-100/90">
             {isSubmittedTicketsPage
-              ? 'Admin and technicians can assign tickets, update status, add resolution notes, and manage comments.'
+              ? 'A technician (or staff member) can be assigned to a ticket and can update status and add resolution notes.'
               : isAssignedTicketsPage
                 ? 'Technicians can see tickets assigned to them and update progress.'
               : 'View all submitted tickets and click any card to see full details.'}
@@ -335,35 +374,34 @@ const TicketList = () => {
         </div>
 
         {isSubmittedTicketsPage && (
-          <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-white/45 bg-white/15 p-4 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
-            <div className="w-full lg:max-w-md">
+          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between">
+            <div className="w-full rounded-2xl border border-white/45 bg-white/15 p-4 backdrop-blur-xl lg:max-w-xl">
               <input
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Search tickets by any keyword..."
+                placeholder="Search by ticket ID, category, item code, status, or assigned staff..."
                 className="w-full rounded-xl border border-white/50 bg-white/85 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-sky-400"
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="w-full rounded-2xl border border-white/45 bg-white/15 p-4 backdrop-blur-xl lg:w-auto">
+              <div className="flex flex-wrap gap-2">
               {['ALL', 'LOW', 'MEDIUM', 'HIGH'].map((priority) => {
                 const active = priorityFilter === priority;
                 const count = priority === 'ALL' ? tickets.length : prioritySummary[priority] || 0;
+                const priorityClass = getPriorityFilterClass(priority, active);
                 return (
                   <button
                     key={priority}
                     type="button"
                     onClick={() => setPriorityFilter(priority)}
-                    className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
-                      active
-                        ? 'border-white bg-white text-slate-800'
-                        : 'border-white/50 bg-white/20 text-white hover:bg-white/35'
-                    }`}
+                    className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${priorityClass}`}
                   >
                     {priority} ({count})
                   </button>
                 );
               })}
+              </div>
             </div>
           </div>
         )}
@@ -412,41 +450,24 @@ const TicketList = () => {
                     <p className="mt-1 text-sm text-slate-700">
                       <span className="font-semibold">Item Code:</span> {ticket.resourceId || 'N/A'}
                     </p>
-                    <p className="mt-1 text-sm">
-                      <span className="font-semibold text-slate-700">Priority:</span>{' '}
-                      <span className={`font-semibold ${getPriorityTextClass(ticket.priority)}`}>{ticket.priority || 'N/A'}</span>
-                    </p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      <span className="font-semibold">Status:</span>{' '}
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${getStatusPillClass(ticketStatus)}`}>
-                        {ticketStatus}
-                      </span>
-                    </p>
                   </div>
 
-                  <div className="md:text-right">
+                  <div className="md:self-center md:text-right">
+                    <select
+                      value={ticketStatus}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onChange={(e) => handleInlineStatusUpdate(ticket.id, e.target.value)}
+                      disabled={inlineStatusUpdateId === ticket.id}
+                      className={`inline-flex min-w-[140px] justify-center rounded-full border px-4 py-2 text-sm font-bold tracking-wide outline-none ${getStatusPillClass(ticketStatus)}`}
+                    >
+                      <option value="OPEN">OPEN</option>
+                      <option value="IN_PROGRESS">IN_PROGRESS</option>
+                      <option value="RESOLVED">RESOLVED</option>
+                      <option value="CLOSED">CLOSED</option>
+                      <option value="REJECTED">REJECTED</option>
+                    </select>
                     <p className="mt-2 text-xs text-slate-500">Created: {formatDateTime(ticket.createdAt)}</p>
-
-                    {(isSubmittedTicketsPage || isAssignedTicketsPage) && (
-                      <div
-                        className="mt-2"
-                        onClick={(e) => e.stopPropagation()}
-                        role="presentation"
-                      >
-                        <select
-                          value={ticketStatus}
-                          onChange={(e) => handleInlineStatusUpdate(ticket.id, e.target.value)}
-                          disabled={inlineStatusUpdateId === ticket.id}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
-                        >
-                          <option value="OPEN">OPEN</option>
-                          <option value="IN_PROGRESS">IN_PROGRESS</option>
-                          <option value="RESOLVED">RESOLVED</option>
-                          <option value="CLOSED">CLOSED</option>
-                          <option value="REJECTED">REJECTED</option>
-                        </select>
-                      </div>
-                    )}
                   </div>
                 </div>
               </button>
@@ -463,7 +484,7 @@ const TicketList = () => {
           role="presentation"
         >
           <div
-            className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/60 bg-white/70 p-6 shadow-2xl backdrop-blur-2xl [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/60 [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/80"
+            className="ticket-modal-scroll max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/60 bg-white/70 p-6 shadow-2xl backdrop-blur-2xl"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -476,10 +497,13 @@ const TicketList = () => {
               <button
                 type="button"
                 onClick={closeModal}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
                 aria-label="Close ticket details"
               >
-                <span className="text-lg leading-none">x</span>
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M6 6L18 18" />
+                  <path d="M18 6L6 18" />
+                </svg>
               </button>
             </div>
 
@@ -542,7 +566,7 @@ const TicketList = () => {
               )}
             </div>
 
-            {isStaff && (
+            {isStaff && !isMyTicketsPage && (
               <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
                 <h3 className="text-sm font-semibold text-slate-700">Technician / Staff Update</h3>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
