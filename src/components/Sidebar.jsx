@@ -2,12 +2,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { FiHome, FiUser, FiUsers, FiFolder, FiCheckSquare, FiBarChart2, FiMessageSquare, FiSettings, FiLogOut, FiArchive, FiMail } from 'react-icons/fi';
-import { removeToken, getRole } from '../utils/auth';
+import { removeToken } from '../utils/auth';
 
 function Sidebar({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const userRole = getRole();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -27,10 +26,11 @@ function Sidebar({ user }) {
     { label: 'Messages', icon: <FiMessageSquare />, path: '#', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-lavender to-jordy-blue' },
     { label: 'My Tickets', icon: <FiCheckSquare />, path: '/tickets', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-red-500 to-orange-500' },
     { label: 'Submitted Tickets', icon: <FiArchive />, path: '/admin/tickets', roles: ['ADMIN', 'TECHNICIAN'], color: 'from-blue-500 to-cyan-500' },
+    { label: 'Assigned Tickets', icon: <FiArchive />, path: '/technician/assigned-tickets', roles: ['TECHNICIAN'], color: 'from-emerald-500 to-cyan-500' },
     { label: 'Settings', icon: <FiSettings />, path: '#', roles: ['ADMIN'], color: 'from-space-cadet to-oxford' },
   ];
 
-  const filteredItems = menuItems.filter(item => item.roles.includes(userRole));
+  const filteredItems = menuItems;
 
   const SidebarContent = () => (
     <>

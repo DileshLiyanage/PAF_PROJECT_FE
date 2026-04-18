@@ -42,7 +42,7 @@ function App() {
         } />
 
         <Route path="/admin" element={
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
             <AdminPanel />
           </ProtectedRoute>
         } />
@@ -67,7 +67,13 @@ function App() {
         } />
 
         <Route path="/admin/tickets" element={
-          <ProtectedRoute allowedRoles={['ADMIN', 'TECHNICIAN']}>
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
+            <TicketList />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/technician/assigned-tickets" element={
+          <ProtectedRoute allowedRoles={['USER', 'ADMIN', 'TECHNICIAN']}>
             <TicketList />
           </ProtectedRoute>
         } />

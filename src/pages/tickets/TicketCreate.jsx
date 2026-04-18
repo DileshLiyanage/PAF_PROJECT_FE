@@ -284,10 +284,13 @@ const TicketCreate = () => {
 
     try {
       await axiosInstance.post('/api/tickets', data);
+      window.alert('Ticket submitted successfully!');
       navigate('/tickets');
     } catch (error) {
       console.error('Ticket creation error:', error);
-      setSubmitError('Failed to create ticket. Please check your details and try again.');
+      const message = error.response?.data?.message || 'Failed to create ticket. Please check your details and try again.';
+      setSubmitError(message);
+      window.alert(`Ticket submission failed: ${message}`);
     } finally {
       setLoading(false);
     }

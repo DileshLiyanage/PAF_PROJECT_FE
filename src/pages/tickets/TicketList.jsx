@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
 import { getRole, getToken } from '../../utils/auth';
@@ -43,7 +43,22 @@ const getPriorityTextClass = (priority) => {
   return 'text-slate-600';
 };
 
+const getStatusPillClass = (status) => {
+  const normalized = (status || '').toUpperCase();
+  if (normalized === 'OPEN') return 'bg-amber-100 text-amber-700 border-amber-300/70';
+  if (normalized === 'IN_PROGRESS') return 'bg-sky-100 text-sky-700 border-sky-300/70';
+  if (normalized === 'RESOLVED') return 'bg-emerald-100 text-emerald-700 border-emerald-300/70';
+  if (normalized === 'CLOSED') return 'bg-slate-200 text-slate-700 border-slate-300/70';
+  if (normalized === 'REJECTED') return 'bg-rose-100 text-rose-700 border-rose-300/70';
+  return 'bg-indigo-100 text-indigo-700 border-indigo-300/70';
+};
+
 const toDisplayTicketId = (index) => `Ticket${String(index + 1).padStart(4, '0')}`;
+
+const getDisplayTicketIdByRecord = (allTickets, recordId) => {
+  const idx = allTickets.findIndex((ticket) => ticket.id === recordId);
+  return toDisplayTicketId(idx >= 0 ? idx : 0);
+};
 
 const getCurrentUserId = () => {
   try {
@@ -56,12 +71,41 @@ const getCurrentUserId = () => {
   }
 };
 
+const getCurrentUserTokens = () => {
+  try {
+    const token = getToken();
+    if (!token) return [];
+    const payload = JSON.parse(atob(token.split('.')[1]));
+
+    return [
+      payload.sub,
+      payload.email,
+      payload.username,
+      payload.name,
+      payload.preferred_username
+    ]
+      .filter(Boolean)
+      .map((item) => String(item).trim().toLowerCase());
+  } catch {
+    return [];
+  }
+};
+
+const matchesAssignedToUser = (assignedTo, userTokens) => {
+  if (!assignedTo || userTokens.length === 0) return false;
+  const assigned = String(assignedTo).trim().toLowerCase();
+  return userTokens.some((token) => token === assigned);
+};
+
 const TicketList = () => {
   const location = useLocation();
   const currentRole = getRole();
   const currentUserId = getCurrentUserId();
+  const currentUserTokens = useMemo(() => getCurrentUserTokens(), []);
   const isStaff = currentRole === 'ADMIN' || currentRole === 'TECHNICIAN';
   const isSubmittedTicketsPage = location.pathname === '/admin/tickets';
+  const isAssignedTicketsPage = location.pathname === '/technician/assigned-tickets';
+  const isMyTicketsPage = location.pathname === '/tickets';
 
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -76,6 +120,15 @@ const TicketList = () => {
   const [editingCommentInput, setEditingCommentInput] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
   const [modalError, setModalError] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
+  const [inlineStatusUpdateId, setInlineStatusUpdateId] = useState(null);
+
+  const prioritySummary = {
+    LOW: tickets.filter((ticket) => (ticket.priority || '').toUpperCase() === 'LOW').length,
+    MEDIUM: tickets.filter((ticket) => (ticket.priority || '').toUpperCase() === 'MEDIUM').length,
+    HIGH: tickets.filter((ticket) => (ticket.priority || '').toUpperCase() === 'HIGH').length
+  };
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -84,7 +137,17 @@ const TicketList = () => {
 
       try {
         const res = await axiosInstance.get('/api/tickets');
-        const sortedTickets = [...(res.data || [])].sort((a, b) => {
+        let filteredTickets = [...(res.data || [])];
+
+        if (isMyTicketsPage && currentUserId) {
+          filteredTickets = filteredTickets.filter((ticket) => ticket.userId === currentUserId);
+        }
+
+        if (isAssignedTicketsPage) {
+          filteredTickets = filteredTickets.filter((ticket) => matchesAssignedToUser(ticket.assignedTo, currentUserTokens));
+        }
+
+        const sortedTickets = filteredTickets.sort((a, b) => {
           const aTime = new Date(a.createdAt || 0).getTime();
           const bTime = new Date(b.createdAt || 0).getTime();
           return bTime - aTime;
@@ -99,7 +162,10 @@ const TicketList = () => {
     };
 
     fetchTickets();
-  }, []);
+
+    const intervalId = setInterval(fetchTickets, 10000);
+    return () => clearInterval(intervalId);
+  }, [currentUserId, currentUserTokens, isAssignedTicketsPage, isMyTicketsPage]);
 
   const openTicketModal = (ticket) => {
     setSelectedTicket(ticket);
@@ -147,6 +213,25 @@ const TicketList = () => {
       window.alert(`Update failed: ${message}`);
     } finally {
       setUpdatingTicket(false);
+    }
+  };
+
+  const handleInlineStatusUpdate = async (ticketId, status) => {
+    try {
+      setInlineStatusUpdateId(ticketId);
+      const response = await axiosInstance.patch(`/api/tickets/${ticketId}`, null, {
+        params: { status }
+      });
+      setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? response.data : ticket)));
+      if (selectedTicket?.id === ticketId) {
+        syncUpdatedTicket(response.data);
+      }
+      window.alert('Ticket status updated successfully!');
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update ticket status';
+      window.alert(`Update failed: ${message}`);
+    } finally {
+      setInlineStatusUpdateId(null);
     }
   };
 
@@ -204,6 +289,29 @@ const TicketList = () => {
     }
   };
 
+  const visibleTickets = tickets.filter((ticket) => {
+    const normalizedPriority = (ticket.priority || '').toUpperCase();
+    const normalizedStatus = (ticket.status || 'OPEN').toUpperCase();
+    const haystack = [
+      ticket.id,
+      ticket.category,
+      ticket.resourceId,
+      ticket.description,
+      ticket.userId,
+      ticket.assignedTo,
+      ticket.priority,
+      normalizedStatus
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    const keywordOk = !searchKeyword.trim() || haystack.includes(searchKeyword.trim().toLowerCase());
+    const priorityOk = priorityFilter === 'ALL' || normalizedPriority === priorityFilter;
+
+    return keywordOk && priorityOk;
+  });
+
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-no-repeat px-4 py-8 md:px-8"
@@ -215,14 +323,50 @@ const TicketList = () => {
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 w-full rounded-2xl border border-white/45 bg-white/18 px-6 py-5 shadow-lg backdrop-blur-xl">
           <h1 className="text-3xl font-bold text-white md:text-4xl">
-            {isSubmittedTicketsPage ? 'Submitted Tickets' : 'My Incident Tickets'}
+            {isSubmittedTicketsPage ? 'Submitted Tickets' : isAssignedTicketsPage ? 'Assigned Tickets' : 'My Incident Tickets'}
           </h1>
           <p className="mt-2 text-sm text-slate-100/90">
             {isSubmittedTicketsPage
               ? 'Admin and technicians can assign tickets, update status, add resolution notes, and manage comments.'
+              : isAssignedTicketsPage
+                ? 'Technicians can see tickets assigned to them and update progress.'
               : 'View all submitted tickets and click any card to see full details.'}
           </p>
         </div>
+
+        {isSubmittedTicketsPage && (
+          <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-white/45 bg-white/15 p-4 backdrop-blur-xl lg:flex-row lg:items-center lg:justify-between">
+            <div className="w-full lg:max-w-md">
+              <input
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="Search tickets by any keyword..."
+                className="w-full rounded-xl border border-white/50 bg-white/85 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-sky-400"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {['ALL', 'LOW', 'MEDIUM', 'HIGH'].map((priority) => {
+                const active = priorityFilter === priority;
+                const count = priority === 'ALL' ? tickets.length : prioritySummary[priority] || 0;
+                return (
+                  <button
+                    key={priority}
+                    type="button"
+                    onClick={() => setPriorityFilter(priority)}
+                    className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+                      active
+                        ? 'border-white bg-white text-slate-800'
+                        : 'border-white/50 bg-white/20 text-white hover:bg-white/35'
+                    }`}
+                  >
+                    {priority} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="rounded-2xl border border-white/70 bg-white/50 p-6 text-slate-700 shadow-md backdrop-blur-lg">
@@ -236,16 +380,17 @@ const TicketList = () => {
           </div>
         )}
 
-        {!loading && !error && tickets.length === 0 && (
+        {!loading && !error && visibleTickets.length === 0 && (
           <div className="rounded-2xl border border-white/70 bg-white/50 p-8 text-center text-slate-600 shadow-md backdrop-blur-lg">
             No tickets found yet.
           </div>
         )}
 
-        {!loading && !error && tickets.length > 0 && (
+        {!loading && !error && visibleTickets.length > 0 && (
           <div className="grid gap-4">
-            {tickets.map((ticket, index) => {
+            {visibleTickets.map((ticket, index) => {
               const categoryParts = extractCategoryParts(ticket.category);
+              const ticketStatus = (ticket.status || 'OPEN').toUpperCase();
               return (
               <button
                 key={ticket.id}
@@ -256,7 +401,7 @@ const TicketList = () => {
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-lg font-semibold text-slate-800">
-                      {toDisplayTicketId(index)}
+                      {getDisplayTicketIdByRecord(tickets, ticket.id)}
                     </p>
                     <p className="mt-1 text-sm text-slate-700">
                       <span className="font-semibold">Category:</span> {categoryParts.main}
@@ -271,10 +416,37 @@ const TicketList = () => {
                       <span className="font-semibold text-slate-700">Priority:</span>{' '}
                       <span className={`font-semibold ${getPriorityTextClass(ticket.priority)}`}>{ticket.priority || 'N/A'}</span>
                     </p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      <span className="font-semibold">Status:</span>{' '}
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${getStatusPillClass(ticketStatus)}`}>
+                        {ticketStatus}
+                      </span>
+                    </p>
                   </div>
 
                   <div className="md:text-right">
                     <p className="mt-2 text-xs text-slate-500">Created: {formatDateTime(ticket.createdAt)}</p>
+
+                    {(isSubmittedTicketsPage || isAssignedTicketsPage) && (
+                      <div
+                        className="mt-2"
+                        onClick={(e) => e.stopPropagation()}
+                        role="presentation"
+                      >
+                        <select
+                          value={ticketStatus}
+                          onChange={(e) => handleInlineStatusUpdate(ticket.id, e.target.value)}
+                          disabled={inlineStatusUpdateId === ticket.id}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+                        >
+                          <option value="OPEN">OPEN</option>
+                          <option value="IN_PROGRESS">IN_PROGRESS</option>
+                          <option value="RESOLVED">RESOLVED</option>
+                          <option value="CLOSED">CLOSED</option>
+                          <option value="REJECTED">REJECTED</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               </button>
@@ -299,7 +471,7 @@ const TicketList = () => {
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">Ticket Details</h2>
-                <p className="text-sm text-slate-600">{toDisplayTicketId(tickets.findIndex((ticket) => ticket.id === selectedTicket.id))}</p>
+                <p className="text-sm text-slate-600">{getDisplayTicketIdByRecord(tickets, selectedTicket.id)}</p>
               </div>
               <button
                 type="button"
@@ -410,33 +582,34 @@ const TicketList = () => {
               </div>
             )}
 
-            <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
-              <h3 className="text-sm font-semibold text-slate-700">Comments</h3>
+            {!isSubmittedTicketsPage && (
+              <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
+                <h3 className="text-sm font-semibold text-slate-700">Comments</h3>
 
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={commentInput}
-                  onChange={(e) => setCommentInput(e.target.value)}
-                  placeholder="Add a comment"
-                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddComment}
-                  disabled={commentLoading || !commentInput.trim()}
-                  className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-60"
-                >
-                  Add
-                </button>
-              </div>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    value={commentInput}
+                    onChange={(e) => setCommentInput(e.target.value)}
+                    placeholder="Add a comment"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddComment}
+                    disabled={commentLoading || !commentInput.trim()}
+                    className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-60"
+                  >
+                    Add
+                  </button>
+                </div>
 
-              <div className="mt-4 space-y-3">
-                {selectedTicket.comments?.length ? (
-                  selectedTicket.comments.map((comment) => {
-                    const canManageComment = isStaff || (currentUserId && comment.userId === currentUserId);
+                <div className="mt-4 space-y-3">
+                  {selectedTicket.comments?.length ? (
+                    selectedTicket.comments.map((comment) => {
+                      const canManageComment = isStaff || (currentUserId && comment.userId === currentUserId);
 
-                    return (
-                      <div key={comment.id} className="rounded-xl border border-slate-200 bg-white/80 p-3">
+                      return (
+                        <div key={comment.id} className="rounded-xl border border-slate-200 bg-white/80 p-3">
                         <p className="text-xs font-semibold text-slate-500">{comment.userName || comment.userId || 'User'}</p>
 
                         {editingCommentId === comment.id ? (
@@ -495,14 +668,15 @@ const TicketList = () => {
                             </button>
                           </div>
                         )}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="text-sm text-slate-600">No comments yet.</p>
-                )}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-slate-600">No comments yet.</p>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
