@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { bookingService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { 
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
     PieChart, Pie, Cell, LineChart, Line, Legend
@@ -18,6 +19,7 @@ const COLORS = {
 const CHART_COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316'];
 
 export default function AdminDashboardPage() {
+    const { user } = useAuth();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -33,7 +35,7 @@ export default function AdminDashboardPage() {
             }
         };
         fetchAnalytics();
-    }, []);
+    }, [user?.role]);
 
     if (loading) return <div className="loader">Loading Dashboard...</div>;
     if (!stats) return <div className="loader">Failed to load analytics data</div>;

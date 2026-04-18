@@ -3,9 +3,11 @@ import { bookingService } from '../services/api';
 import QRCodeModal from '../components/QRCodeModal';
 import { Calendar, Clock, MapPin, XCircle, Search } from 'lucide-react';
 import { useSearch } from '../context/SearchContext';
+import { useAuth } from '../context/AuthContext';
 import './Cards.css';
 
 export default function MyBookingsPage() {
+    const { user } = useAuth();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filterStatus, setFilterStatus] = useState('ALL');
@@ -26,7 +28,7 @@ export default function MyBookingsPage() {
 
     useEffect(() => {
         fetchBookings();
-    }, []);
+    }, [user?.role]);
 
     const handleCancel = async (id) => {
         if (!window.confirm('Are you sure you want to cancel this booking?')) return;

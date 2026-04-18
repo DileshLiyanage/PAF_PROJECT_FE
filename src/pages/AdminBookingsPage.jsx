@@ -3,9 +3,11 @@ import { bookingService, resourceService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Eye } from 'lucide-react';
 import { useSearch } from '../context/SearchContext';
+import { useAuth } from '../context/AuthContext';
 import './Table.css';
 
 export default function AdminBookingsPage() {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const [bookings, setBookings] = useState([]);
     const [resources, setResources] = useState([]);
@@ -42,7 +44,7 @@ export default function AdminBookingsPage() {
 
     useEffect(() => {
         fetchBookings();
-    }, [statusFilter, resourceFilter, startDate, endDate]);
+    }, [statusFilter, resourceFilter, startDate, endDate, user?.role]);
 
     const handleApprove = async (id) => {
         if (!window.confirm('Approve this booking?')) return;
