@@ -5,10 +5,19 @@
 }
 
 .booking-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
     padding: 1.5rem;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    transition: box-shadow 0.3s ease;
+}
+
+.booking-card:hover {
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
 }
 
 .card-header {
