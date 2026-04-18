@@ -1,19 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Premium Dark Mode Colors */
-  --bg-primary: #0a0e17;
-  --bg-secondary: #131a2a;
-  --bg-surface: rgba(30, 41, 59, 0.7);
-  --bg-surface-hover: rgba(30, 41, 59, 0.9);
+  /* Premium Light Mode Colors */
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f8fafc;
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
 
-  --accent-primary: #3b82f6;
-  --accent-primary-hover: #2563eb;
-  --accent-primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --accent-primary: #4f46e6;
+  --accent-primary-hover: #4338ca;
+  --accent-primary-gradient: linear-gradient(135deg, #4f46e6 0%, #6366f1 100%);
   
   --status-pending: #fbbf24;
   --status-pending-bg: rgba(251, 191, 36, 0.1);
@@ -24,8 +24,8 @@
   --status-cancelled: #94a3b8;
   --status-cancelled-bg: rgba(148, 163, 184, 0.1);
 
-  --border-color: rgba(255, 255, 255, 0.1);
-  --border-highlight: rgba(255, 255, 255, 0.2);
+  --border-color: #e2e8f0;
+  --border-highlight: #cbd5e1;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
