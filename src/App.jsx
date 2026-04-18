@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navigation from './components/Navigation';
 
@@ -20,6 +20,19 @@ const ProtectedRoute = ({ children, requireAdmin }) => {
 
 const AppRoutes = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
+    const previousRoleRef = useRef(user?.role);
+
+    useEffect(() => {
+        if (previousRoleRef.current && previousRoleRef.current !== user?.role) {
+            if (user?.role === 'ADMIN') {
+                navigate('/admin/dashboard');
+            } else {
+                navigate('/bookings/my');
+            }
+        }
+        previousRoleRef.current = user?.role;
+    }, [user?.role, navigate]);
     
     return (
         <>
