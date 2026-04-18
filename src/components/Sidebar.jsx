@@ -1,7 +1,7 @@
 // Sidebar.jsx
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiHome, FiUser, FiUsers, FiFolder, FiCheckSquare, FiBarChart2, FiMessageSquare, FiSettings, FiLogOut, FiArchive, FiMail } from 'react-icons/fi';
+import { FiHome, FiUser, FiUsers, FiFolder, FiCheckSquare, FiBarChart2, FiMessageSquare, FiSettings, FiLogOut, FiArchive, FiMail, FiUserCheck } from 'react-icons/fi';
 import { removeToken } from '../utils/auth';
 
 function Sidebar({ user }) {
@@ -26,14 +26,14 @@ function Sidebar({ user }) {
     { label: 'Messages', icon: <FiMessageSquare />, path: '#', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-lavender to-jordy-blue' },
     { label: 'My Tickets', icon: <FiCheckSquare />, path: '/tickets', roles: ['USER', 'ADMIN', 'TECHNICIAN'], color: 'from-red-500 to-orange-500' },
     { label: 'Submitted Tickets', icon: <FiArchive />, path: '/admin/tickets', roles: ['ADMIN', 'TECHNICIAN'], color: 'from-blue-500 to-cyan-500' },
-    { label: 'Assigned Tickets', icon: <FiArchive />, path: '/technician/assigned-tickets', roles: ['TECHNICIAN'], color: 'from-emerald-500 to-cyan-500' },
+    { label: 'Assigned Tickets', icon: <FiUserCheck />, path: '/technician/assigned-tickets', roles: ['TECHNICIAN'], color: 'from-emerald-500 to-cyan-500' },
     { label: 'Settings', icon: <FiSettings />, path: '#', roles: ['ADMIN'], color: 'from-space-cadet to-oxford' },
   ];
 
   const filteredItems = menuItems;
 
   const SidebarContent = () => (
-    <>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Logo */}
       <div className="p-5 lg:p-6 border-b border-lavender/20">
         <div className="flex items-center gap-3">
@@ -48,7 +48,7 @@ function Sidebar({ user }) {
       </div>
 
       {/* Menu Items */}
-      <nav className="flex-1 p-4 lg:p-5 space-y-1.5 overflow-y-auto">
+      <nav className="min-h-0 flex-1 overflow-y-auto p-4 space-y-1.5 lg:p-5">
         {filteredItems.map((item) => (
           <Link
             key={item.path}
@@ -95,7 +95,7 @@ function Sidebar({ user }) {
           <span>Logout</span>
         </button>
       </div>
-    </>
+    </div>
   );
 
   return (
@@ -109,7 +109,7 @@ function Sidebar({ user }) {
       </button>
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:block w-72 bg-gradient-to-br from-oxford via-space-cadet to-ylnmn-blue min-h-screen fixed left-0 top-0 shadow-2xl border-r border-jordy-blue/20">
+      <div className="hidden lg:block w-72 h-screen bg-gradient-to-br from-oxford via-space-cadet to-ylnmn-blue fixed left-0 top-0 overflow-hidden shadow-2xl border-r border-jordy-blue/20">
         <SidebarContent />
       </div>
 
@@ -120,7 +120,7 @@ function Sidebar({ user }) {
             className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={() => setIsMobileMenuOpen(false)}
           />
-          <div className="fixed top-0 left-0 w-72 h-full bg-gradient-to-br from-oxford via-space-cadet to-ylnmn-blue z-50 shadow-2xl animate-slideIn lg:hidden border-r border-jordy-blue/20">
+          <div className="fixed top-0 left-0 w-72 h-screen bg-gradient-to-br from-oxford via-space-cadet to-ylnmn-blue z-50 overflow-hidden shadow-2xl animate-slideIn lg:hidden border-r border-jordy-blue/20">
             <SidebarContent />
           </div>
         </>

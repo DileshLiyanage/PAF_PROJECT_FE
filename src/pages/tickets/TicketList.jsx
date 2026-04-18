@@ -113,7 +113,26 @@ const getCurrentUserTokens = () => {
 const matchesAssignedToUser = (assignedTo, userTokens) => {
   if (!assignedTo || userTokens.length === 0) return false;
   const assigned = String(assignedTo).trim().toLowerCase();
-  return userTokens.some((token) => token === assigned);
+  return userTokens.some((token) => assigned === token || assigned.includes(token));
+};
+
+const getUserDisplayName = (user) => {
+  if (!user) return 'Technician';
+  const name = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  return user.name || name || user.email || 'Technician';
+};
+
+const formatAssignedProfile = (assignedTo) => {
+  const raw = String(assignedTo || '').trim();
+  if (!raw) {
+    return { name: 'Not assigned', email: '', raw: '' };
+  }
+
+  const match = raw.match(/^(.*?)(?:\s*<(.+?)>)?$/);
+  const name = match?.[1]?.trim() || raw;
+  const email = match?.[2]?.trim() || '';
+
+  return { name, email, raw };
 };
 
 const modalScrollbarStyles = `
@@ -164,6 +183,8 @@ const TicketList = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [inlineStatusUpdateId, setInlineStatusUpdateId] = useState(null);
+  const [technicianOptions, setTechnicianOptions] = useState([]);
+  const [techniciansLoading, setTechniciansLoading] = useState(false);
 
   const prioritySummary = {
     LOW: tickets.filter((ticket) => (ticket.priority || '').toUpperCase() === 'LOW').length,
@@ -207,6 +228,52 @@ const TicketList = () => {
     const intervalId = setInterval(fetchTickets, 30000);
     return () => clearInterval(intervalId);
   }, [currentUserId, currentUserTokens, isAssignedTicketsPage, isMyTicketsPage]);
+
+  useEffect(() => {
+    if (!isSubmittedTicketsPage || !isStaff) {
+      setTechnicianOptions([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchTechnicians = async () => {
+      setTechniciansLoading(true);
+      try {
+        const response = await axiosInstance.get('/api/admin/users');
+        const technicians = (response.data || [])
+          .filter((user) => String(user.role || '').toUpperCase() === 'TECHNICIAN')
+          .map((user) => {
+            const displayName = getUserDisplayName(user);
+            const email = user.email || '';
+            return {
+              value: email ? `${displayName} <${email}>` : displayName,
+              label: email ? `${displayName} (${email})` : displayName,
+              profileName: displayName,
+              profileEmail: email
+            };
+          });
+
+        if (isMounted) {
+          setTechnicianOptions(technicians);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setTechnicianOptions([]);
+        }
+      } finally {
+        if (isMounted) {
+          setTechniciansLoading(false);
+        }
+      }
+    };
+
+    fetchTechnicians();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isStaff, isSubmittedTicketsPage]);
 
   const openTicketModal = (ticket) => {
     setSelectedTicket(ticket);
@@ -566,7 +633,31 @@ const TicketList = () => {
               )}
             </div>
 
-            {isStaff && !isMyTicketsPage && (
+            {isAssignedTicketsPage && selectedTicket.assignedTo && (
+              <div className="mt-4 rounded-2xl border border-sky-200/70 bg-sky-50/80 p-4">
+                <h3 className="text-sm font-semibold text-slate-700">Assigned Technician Profile</h3>
+                {(() => {
+                  const assignedProfile = formatAssignedProfile(selectedTicket.assignedTo);
+                  const profileInitial = (assignedProfile.name || assignedProfile.email || 'T').charAt(0).toUpperCase();
+                  return (
+                    <div className="mt-3 flex items-center gap-3 rounded-2xl border border-sky-200/70 bg-white/80 px-3 py-2">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+                        {profileInitial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-800">{assignedProfile.name}</p>
+                        <p className="truncate text-xs text-slate-600">{assignedProfile.email || assignedProfile.raw}</p>
+                      </div>
+                      <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-sky-700">
+                        Technician
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {isStaff && !isMyTicketsPage && !isAssignedTicketsPage && (
               <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
                 <h3 className="text-sm font-semibold text-slate-700">Technician / Staff Update</h3>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -581,12 +672,31 @@ const TicketList = () => {
                     <option value="CLOSED">CLOSED</option>
                     <option value="REJECTED">REJECTED</option>
                   </select>
-                  <input
-                    value={assignedToInput}
-                    onChange={(e) => setAssignedToInput(e.target.value)}
-                    placeholder="Assign to technician/staff"
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                  />
+                  {technicianOptions.length > 0 ? (
+                    <select
+                      value={assignedToInput}
+                      onChange={(e) => setAssignedToInput(e.target.value)}
+                      disabled={techniciansLoading}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    >
+                      <option value="">Unassigned</option>
+                      {assignedToInput && !technicianOptions.some((option) => option.value === assignedToInput) && (
+                        <option value={assignedToInput}>{assignedToInput}</option>
+                      )}
+                      {technicianOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={assignedToInput}
+                      onChange={(e) => setAssignedToInput(e.target.value)}
+                      placeholder={techniciansLoading ? 'Loading technicians...' : 'Assign to technician/staff'}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                    />
+                  )}
                 </div>
                 <textarea
                   value={notesInput}
@@ -630,7 +740,7 @@ const TicketList = () => {
                 <div className="mt-4 space-y-3">
                   {selectedTicket.comments?.length ? (
                     selectedTicket.comments.map((comment) => {
-                      const canManageComment = isStaff || (currentUserId && comment.userId === currentUserId);
+                      const canManageComment = currentRole === 'ADMIN' || (currentUserId && comment.userId === currentUserId);
 
                       return (
                         <div key={comment.id} className="rounded-xl border border-slate-200 bg-white/80 p-3">
