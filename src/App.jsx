@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Navigation from './components/Navigation';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
 
 // Will create these next
 import BookingFormPage from './pages/BookingFormPage';
@@ -22,6 +23,7 @@ const AppRoutes = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const previousRoleRef = useRef(user?.role);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     useEffect(() => {
         if (previousRoleRef.current && previousRoleRef.current !== user?.role) {
@@ -33,12 +35,16 @@ const AppRoutes = () => {
         }
         previousRoleRef.current = user?.role;
     }, [user?.role, navigate]);
+
+    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
     
     return (
-        <>
-            <Navigation />
-            <main className="main-content">
-                <Routes>
+        <div className="app-layout">
+            <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+            <div className="main-wrapper">
+                <Header toggleSidebar={toggleSidebar} />
+                <main className="main-content">
+                    <Routes>
                     <Route path="/" element={
                         user?.role === 'ADMIN' ? <Navigate to="/admin/dashboard" /> : <Navigate to="/bookings/my" />
                     } />
@@ -52,9 +58,10 @@ const AppRoutes = () => {
                     <Route path="/admin/dashboard" element={<ProtectedRoute requireAdmin><AdminDashboardPage /></ProtectedRoute>} />
                     <Route path="/admin/bookings" element={<ProtectedRoute requireAdmin><AdminBookingsPage /></ProtectedRoute>} />
                     <Route path="/admin/calendar" element={<ProtectedRoute requireAdmin><CalendarViewPage /></ProtectedRoute>} />
-                </Routes>
-            </main>
-        </>
+                    </Routes>
+                </main>
+            </div>
+        </div>
     );
 };
 
