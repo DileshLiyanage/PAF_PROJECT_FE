@@ -1,17 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import axiosInstance from '../../api/axiosInstance';
-
-const getStatusStyles = (status) => {
-  const normalized = (status || '').toUpperCase();
-
-  if (normalized === 'OPEN') return 'bg-amber-100 text-amber-700 border-amber-300/70';
-  if (normalized === 'IN_PROGRESS') return 'bg-sky-100 text-sky-700 border-sky-300/70';
-  if (normalized === 'RESOLVED') return 'bg-emerald-100 text-emerald-700 border-emerald-300/70';
-  if (normalized === 'CLOSED') return 'bg-slate-200 text-slate-700 border-slate-300/70';
-  if (normalized === 'REJECTED') return 'bg-rose-100 text-rose-700 border-rose-300/70';
-
-  return 'bg-indigo-100 text-indigo-700 border-indigo-300/70';
-};
+import { getRole, getToken } from '../../utils/auth';
 
 const formatDateTime = (value) => {
   if (!value) return 'N/A';
@@ -29,11 +19,63 @@ const formatCategory = (value) => {
     .join(' ');
 };
 
+const extractCategoryParts = (value) => {
+  if (!value) {
+    return { main: 'N/A', sub: 'N/A' };
+  }
+
+  const tokens = value.split('_');
+  if (tokens.length === 1) {
+    return { main: formatCategory(tokens[0]), sub: 'N/A' };
+  }
+
+  return {
+    main: formatCategory(tokens[0]),
+    sub: formatCategory(tokens.slice(1).join('_'))
+  };
+};
+
+const getPriorityTextClass = (priority) => {
+  const normalized = (priority || '').toUpperCase();
+  if (normalized === 'LOW') return 'text-emerald-600';
+  if (normalized === 'MEDIUM') return 'text-amber-500';
+  if (normalized === 'HIGH') return 'text-rose-600';
+  return 'text-slate-600';
+};
+
+const toDisplayTicketId = (index) => `Ticket${String(index + 1).padStart(4, '0')}`;
+
+const getCurrentUserId = () => {
+  try {
+    const token = getToken();
+    if (!token) return null;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.sub || payload.email || payload.username || null;
+  } catch {
+    return null;
+  }
+};
+
 const TicketList = () => {
+  const location = useLocation();
+  const currentRole = getRole();
+  const currentUserId = getCurrentUserId();
+  const isStaff = currentRole === 'ADMIN' || currentRole === 'TECHNICIAN';
+  const isSubmittedTicketsPage = location.pathname === '/admin/tickets';
+
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusInput, setStatusInput] = useState('OPEN');
+  const [notesInput, setNotesInput] = useState('');
+  const [assignedToInput, setAssignedToInput] = useState('');
+  const [updatingTicket, setUpdatingTicket] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentInput, setEditingCommentInput] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -59,14 +101,127 @@ const TicketList = () => {
     fetchTickets();
   }, []);
 
-  const closeModal = () => setSelectedTicket(null);
+  const openTicketModal = (ticket) => {
+    setSelectedTicket(ticket);
+    setStatusInput(ticket.status || 'OPEN');
+    setNotesInput(ticket.resolutionNotes || '');
+    setAssignedToInput(ticket.assignedTo || '');
+    setCommentInput('');
+    setEditingCommentId(null);
+    setEditingCommentInput('');
+    setModalError('');
+  };
+
+  const closeModal = () => {
+    setSelectedTicket(null);
+    setModalError('');
+  };
+
+  const syncUpdatedTicket = (updated) => {
+    setTickets((prev) => prev.map((ticket) => (ticket.id === updated.id ? updated : ticket)));
+    setSelectedTicket(updated);
+    setStatusInput(updated.status || 'OPEN');
+    setNotesInput(updated.resolutionNotes || '');
+    setAssignedToInput(updated.assignedTo || '');
+  };
+
+  const handleUpdateTicket = async () => {
+    if (!selectedTicket) return;
+
+    try {
+      setUpdatingTicket(true);
+      setModalError('');
+      const response = await axiosInstance.patch(`/api/tickets/${selectedTicket.id}`, null, {
+        params: {
+          status: statusInput,
+          notes: notesInput || undefined,
+          assignedTo: assignedToInput || undefined
+        }
+      });
+      syncUpdatedTicket(response.data);
+      window.alert('Ticket updated successfully!');
+      closeModal();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update ticket';
+      setModalError(message);
+      window.alert(`Update failed: ${message}`);
+    } finally {
+      setUpdatingTicket(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedTicket || !commentInput.trim()) return;
+
+    try {
+      setCommentLoading(true);
+      setModalError('');
+      const response = await axiosInstance.post(`/api/tickets/${selectedTicket.id}/comments`, null, {
+        params: { content: commentInput }
+      });
+      setCommentInput('');
+      syncUpdatedTicket(response.data);
+    } catch (err) {
+      setModalError(err.response?.data?.message || 'Failed to add comment');
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const handleUpdateComment = async () => {
+    if (!selectedTicket || !editingCommentId || !editingCommentInput.trim()) return;
+
+    try {
+      setCommentLoading(true);
+      setModalError('');
+      const response = await axiosInstance.put(
+        `/api/tickets/${selectedTicket.id}/comments/${editingCommentId}`,
+        null,
+        { params: { content: editingCommentInput } }
+      );
+      setEditingCommentId(null);
+      setEditingCommentInput('');
+      syncUpdatedTicket(response.data);
+    } catch (err) {
+      setModalError(err.response?.data?.message || 'Failed to update comment');
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!selectedTicket) return;
+
+    try {
+      setCommentLoading(true);
+      setModalError('');
+      const response = await axiosInstance.delete(`/api/tickets/${selectedTicket.id}/comments/${commentId}`);
+      syncUpdatedTicket(response.data);
+    } catch (err) {
+      setModalError(err.response?.data?.message || 'Failed to delete comment');
+    } finally {
+      setCommentLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-sky-50 to-indigo-100 px-4 py-8 md:px-8">
+    <div
+      className="min-h-screen bg-cover bg-center bg-no-repeat px-4 py-8 md:px-8"
+      style={{
+        backgroundImage:
+          "linear-gradient(125deg, rgba(9, 20, 41, 0.76), rgba(33, 87, 141, 0.58)), url('https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1800&q=80')"
+      }}
+    >
       <div className="mx-auto max-w-6xl">
-        <div className="mb-6 rounded-3xl border border-white/70 bg-white/45 p-6 shadow-lg backdrop-blur-xl">
-          <h1 className="text-3xl font-bold text-slate-800 md:text-4xl">My Incident Tickets</h1>
-          <p className="mt-2 text-sm text-slate-600">View all submitted tickets and click any card to see full details.</p>
+        <div className="mb-6 w-full rounded-2xl border border-white/45 bg-white/18 px-6 py-5 shadow-lg backdrop-blur-xl">
+          <h1 className="text-3xl font-bold text-white md:text-4xl">
+            {isSubmittedTicketsPage ? 'Submitted Tickets' : 'My Incident Tickets'}
+          </h1>
+          <p className="mt-2 text-sm text-slate-100/90">
+            {isSubmittedTicketsPage
+              ? 'Admin and technicians can assign tickets, update status, add resolution notes, and manage comments.'
+              : 'View all submitted tickets and click any card to see full details.'}
+          </p>
         </div>
 
         {loading && (
@@ -89,36 +244,42 @@ const TicketList = () => {
 
         {!loading && !error && tickets.length > 0 && (
           <div className="grid gap-4">
-            {tickets.map((ticket) => (
+            {tickets.map((ticket, index) => {
+              const categoryParts = extractCategoryParts(ticket.category);
+              return (
               <button
                 key={ticket.id}
                 type="button"
-                onClick={() => setSelectedTicket(ticket)}
+                onClick={() => openTicketModal(ticket)}
                 className="w-full rounded-2xl border border-white/70 bg-white/45 p-5 text-left shadow-md backdrop-blur-lg transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-sky-400"
               >
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-lg font-semibold text-slate-800">
-                      #{ticket.id}
+                      {toDisplayTicketId(index)}
                     </p>
-                    <p className="mt-1 text-sm font-medium text-slate-600">
-                      {formatCategory(ticket.category)}
-                      {ticket.resourceId ? ` • ${ticket.resourceId}` : ''}
+                    <p className="mt-1 text-sm text-slate-700">
+                      <span className="font-semibold">Category:</span> {categoryParts.main}
                     </p>
-                    <p className="mt-2 max-w-3xl text-sm text-slate-700">
-                      {ticket.description?.length > 120 ? `${ticket.description.slice(0, 120)}...` : (ticket.description || 'No description')}
+                    <p className="mt-1 text-sm text-slate-700">
+                      <span className="font-semibold">Sub Category:</span> {categoryParts.sub}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      <span className="font-semibold">Item Code:</span> {ticket.resourceId || 'N/A'}
+                    </p>
+                    <p className="mt-1 text-sm">
+                      <span className="font-semibold text-slate-700">Priority:</span>{' '}
+                      <span className={`font-semibold ${getPriorityTextClass(ticket.priority)}`}>{ticket.priority || 'N/A'}</span>
                     </p>
                   </div>
 
                   <div className="md:text-right">
-                    <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusStyles(ticket.status)}`}>
-                      {ticket.status || 'N/A'}
-                    </span>
                     <p className="mt-2 text-xs text-slate-500">Created: {formatDateTime(ticket.createdAt)}</p>
                   </div>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -130,7 +291,7 @@ const TicketList = () => {
           role="presentation"
         >
           <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/60 bg-white/70 p-6 shadow-2xl backdrop-blur-2xl"
+            className="max-h-[85vh] w-full max-w-3xl overflow-y-auto rounded-3xl border border-white/60 bg-white/70 p-6 shadow-2xl backdrop-blur-2xl [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/60 [&::-webkit-scrollbar-thumb:hover]:bg-slate-500/80"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -138,27 +299,43 @@ const TicketList = () => {
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800">Ticket Details</h2>
-                <p className="text-sm text-slate-600">#{selectedTicket.id}</p>
+                <p className="text-sm text-slate-600">{toDisplayTicketId(tickets.findIndex((ticket) => ticket.id === selectedTicket.id))}</p>
               </div>
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-lg bg-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-300"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
+                aria-label="Close ticket details"
               >
-                Close
+                <span className="text-lg leading-none">x</span>
               </button>
             </div>
 
+            {modalError && (
+              <div className="mb-4 rounded-xl border border-red-300/70 bg-red-100/70 p-3 text-sm text-red-700">
+                {modalError}
+              </div>
+            )}
+
+            {(() => {
+              const categoryParts = extractCategoryParts(selectedTicket.category);
+              return (
             <div className="grid gap-3 rounded-2xl border border-white/70 bg-white/40 p-4 text-sm text-slate-700 md:grid-cols-2">
-              <p><span className="font-semibold">Category:</span> {formatCategory(selectedTicket.category)}</p>
+              <p><span className="font-semibold">Category:</span> {categoryParts.main}</p>
+              <p><span className="font-semibold">Sub Category:</span> {categoryParts.sub}</p>
               <p><span className="font-semibold">Item Code:</span> {selectedTicket.resourceId || 'N/A'}</p>
-              <p><span className="font-semibold">Priority:</span> {selectedTicket.priority || 'N/A'}</p>
+              <p>
+                <span className="font-semibold">Priority:</span>{' '}
+                <span className={`font-semibold ${getPriorityTextClass(selectedTicket.priority)}`}>{selectedTicket.priority || 'N/A'}</span>
+              </p>
               <p><span className="font-semibold">Status:</span> {selectedTicket.status || 'N/A'}</p>
               <p><span className="font-semibold">Assigned To:</span> {selectedTicket.assignedTo || 'Not assigned'}</p>
               <p><span className="font-semibold">Created At:</span> {formatDateTime(selectedTicket.createdAt)}</p>
               <p><span className="font-semibold">Updated At:</span> {formatDateTime(selectedTicket.updatedAt)}</p>
               <p><span className="font-semibold">User:</span> {selectedTicket.userId || 'N/A'}</p>
             </div>
+              );
+            })()}
 
             <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
               <h3 className="text-sm font-semibold text-slate-700">Description</h3>
@@ -191,6 +368,140 @@ const TicketList = () => {
               ) : (
                 <p className="mt-2 text-sm text-slate-600">No evidence images attached.</p>
               )}
+            </div>
+
+            {isStaff && (
+              <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
+                <h3 className="text-sm font-semibold text-slate-700">Technician / Staff Update</h3>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <select
+                    value={statusInput}
+                    onChange={(e) => setStatusInput(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                  >
+                    <option value="OPEN">OPEN</option>
+                    <option value="IN_PROGRESS">IN_PROGRESS</option>
+                    <option value="RESOLVED">RESOLVED</option>
+                    <option value="CLOSED">CLOSED</option>
+                    <option value="REJECTED">REJECTED</option>
+                  </select>
+                  <input
+                    value={assignedToInput}
+                    onChange={(e) => setAssignedToInput(e.target.value)}
+                    placeholder="Assign to technician/staff"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                  />
+                </div>
+                <textarea
+                  value={notesInput}
+                  onChange={(e) => setNotesInput(e.target.value)}
+                  placeholder="Add resolution notes"
+                  rows={3}
+                  className="mt-3 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={handleUpdateTicket}
+                  disabled={updatingTicket}
+                  className="mt-3 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {updatingTicket ? 'Updating...' : 'Update Ticket'}
+                </button>
+              </div>
+            )}
+
+            <div className="mt-4 rounded-2xl border border-white/70 bg-white/40 p-4">
+              <h3 className="text-sm font-semibold text-slate-700">Comments</h3>
+
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  placeholder="Add a comment"
+                  className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddComment}
+                  disabled={commentLoading || !commentInput.trim()}
+                  className="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-60"
+                >
+                  Add
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {selectedTicket.comments?.length ? (
+                  selectedTicket.comments.map((comment) => {
+                    const canManageComment = isStaff || (currentUserId && comment.userId === currentUserId);
+
+                    return (
+                      <div key={comment.id} className="rounded-xl border border-slate-200 bg-white/80 p-3">
+                        <p className="text-xs font-semibold text-slate-500">{comment.userName || comment.userId || 'User'}</p>
+
+                        {editingCommentId === comment.id ? (
+                          <>
+                            <textarea
+                              value={editingCommentInput}
+                              onChange={(e) => setEditingCommentInput(e.target.value)}
+                              rows={2}
+                              className="mt-2 w-full rounded-lg border border-slate-200 px-2 py-1 text-sm text-slate-700"
+                            />
+                            <div className="mt-2 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={handleUpdateComment}
+                                disabled={commentLoading || !editingCommentInput.trim()}
+                                className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCommentId(null);
+                                  setEditingCommentInput('');
+                                }}
+                                className="rounded-lg bg-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="mt-1 text-sm text-slate-700">{comment.content}</p>
+                        )}
+
+                        <p className="mt-1 text-[11px] text-slate-500">{formatDateTime(comment.updatedAt || comment.createdAt)}</p>
+
+                        {canManageComment && editingCommentId !== comment.id && (
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCommentId(comment.id);
+                                setEditingCommentInput(comment.content || '');
+                              }}
+                              className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComment(comment.id)}
+                              className="rounded-lg bg-rose-100 px-2 py-1 text-xs font-semibold text-rose-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-slate-600">No comments yet.</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -65,6 +65,12 @@ function App() {
             <TicketDetail />
           </ProtectedRoute>
         } />
+
+        <Route path="/admin/tickets" element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'TECHNICIAN']}>
+            <TicketList />
+          </ProtectedRoute>
+        } />
         {/* ================================================================== */}
 
           <Route path="*" element={<Navigate to="/" replace />} />

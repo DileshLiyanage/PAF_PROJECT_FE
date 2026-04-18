@@ -25,29 +25,6 @@ const formatLabel = (value) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-const GlassSelect = ({ children, className = '', ...props }) => (
-  <div className="relative">
-    <select
-      {...props}
-      className={`w-full appearance-none rounded-xl border border-white/40 bg-white/20 px-3 py-3 pr-10 text-sm text-white outline-none shadow-[inset_0_1px_1px_rgba(255,255,255,0.35)] backdrop-blur-md transition focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
-    >
-      {children}
-    </select>
-    <svg
-      className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/90"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.51a.75.75 0 01-1.08 0l-4.25-4.51a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  </div>
-);
-
 const InFlowGlassDropdown = ({
   value,
   placeholder,
@@ -235,6 +212,13 @@ const TicketCreate = () => {
     setErrors(validateForm(nextState, mainCategory, subCategory, nextItem, images));
   };
 
+  const handlePriorityChange = (nextPriority) => {
+    const nextState = { ...formData, priority: nextPriority };
+    setFormData(nextState);
+    setTouched((prev) => ({ ...prev, priority: true }));
+    setErrors(validateForm(nextState, mainCategory, subCategory, subCategoryItem, images));
+  };
+
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (images.length + files.length > 3) {
@@ -389,16 +373,15 @@ const TicketCreate = () => {
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <label className="mb-2 block text-sm font-semibold text-white">Priority</label>
-                <GlassSelect
+                <InFlowGlassDropdown
                   name="priority"
                   value={formData.priority}
-                  onChange={handleChange}
+                  onSelect={handlePriorityChange}
                   onBlur={() => markTouched('priority')}
-                >
-                  <option value="LOW" className="text-slate-900">Low</option>
-                  <option value="MEDIUM" className="text-slate-900">Medium</option>
-                  <option value="HIGH" className="text-slate-900">High</option>
-                </GlassSelect>
+                  placeholder="Select priority"
+                  options={['LOW', 'MEDIUM', 'HIGH']}
+                  formatOption={formatLabel}
+                />
                 {showError('priority') && <p className="mt-1 text-xs text-red-200">{errors.priority}</p>}
               </div>
 
@@ -410,7 +393,7 @@ const TicketCreate = () => {
                   value={formData.contactEmail}
                   onChange={handleChange}
                   onBlur={() => markTouched('contactEmail')}
-                  placeholder="example@sliit.lk"
+                  placeholder="example@gmail.com"
                   className="w-full rounded-xl border border-white/40 bg-white/20 px-3 py-3 text-sm text-white placeholder:text-white/70 outline-none backdrop-blur-md focus:border-cyan-300 focus:ring-2 focus:ring-cyan-200"
                 />
                 {showError('contactEmail') && <p className="mt-1 text-xs text-red-200">{errors.contactEmail}</p>}
