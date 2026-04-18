@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
 import ResourceForm from './ResourceForm';
+import '../../styles/AddEditResource.css';
 
 export default function AddResource(){
   const navigate = useNavigate();

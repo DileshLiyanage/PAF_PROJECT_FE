@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from '../api/axiosInstance';
+import '../styles/ResourceDetail.css';
 
 export default function ResourceDetail(){
   const { id } = useParams();

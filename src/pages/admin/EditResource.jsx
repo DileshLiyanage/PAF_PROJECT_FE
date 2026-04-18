@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from '../../api/axiosInstance';
 import ResourceForm from './ResourceForm';
+import '../../styles/AddEditResource.css';
 
 export default function EditResource(){
   const { id } = useParams();

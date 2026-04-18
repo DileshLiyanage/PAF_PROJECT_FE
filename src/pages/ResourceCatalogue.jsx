@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
+import '../styles/ResourceCatalogue.css';
 
 const ResourceCard = ({ r, onClick }) => (
   <div onClick={onClick} style={{border:'1px solid #ddd',padding:12,borderRadius:6,cursor:'pointer'}}>

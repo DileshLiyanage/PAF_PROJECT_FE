@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../../styles/ResourceForm.css';
 
 export default function ResourceForm({ initial = {}, onSubmit, submitLabel = 'Save' }){
   const [form, setForm] = useState({

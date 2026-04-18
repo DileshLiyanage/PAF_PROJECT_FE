@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from '../../api/axiosInstance';
 import { useNavigate } from 'react-router-dom';
+import '../../styles/ResourceDashboard.css';
 
 export default function ResourceDashboard(){
   const [resources, setResources] = useState([]);

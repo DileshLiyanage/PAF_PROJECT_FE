@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/DileshLiyanage/PAF_PROJECT_FE/static/css/main.b9c9b91b.css",
+    "main.js": "/DileshLiyanage/PAF_PROJECT_FE/static/js/main.b56770e4.js",
+    "index.html": "/DileshLiyanage/PAF_PROJECT_FE/index.html",
+    "main.b9c9b91b.css.map": "/DileshLiyanage/PAF_PROJECT_FE/static/css/main.b9c9b91b.css.map",
+    "main.b56770e4.js.map": "/DileshLiyanage/PAF_PROJECT_FE/static/js/main.b56770e4.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.b9c9b91b.css",
+    "static/js/main.b56770e4.js"
+  ]
+}

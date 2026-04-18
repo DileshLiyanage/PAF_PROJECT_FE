@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (optional alternative to H2)
+  postgres:
+    image: postgres:15-alpine
+    container_name: paf-postgres
+    environment:
+      POSTGRES_DB: paf_database
+      POSTGRES_USER: paf_user
+      POSTGRES_PASSWORD: paf_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - paf-network
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: paf-backend
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/paf_database
+      SPRING_DATASOURCE_USERNAME: paf_user
+      SPRING_DATASOURCE_PASSWORD: paf_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: your-secret-key-change-this-in-production
+      SERVER_PORT: 8080
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://frontend:80
+    ports:
+      - "8080:8080"
+    networks:
+      - paf-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: paf-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    environment:
+      REACT_APP_API_URL: http://backend:8080
+    networks:
+      - paf-network
+
+volumes:
+  postgres_data:
+
+networks:
+  paf-network:
+    driver: bridge
