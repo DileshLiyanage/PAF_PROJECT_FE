@@ -36,6 +36,7 @@ export default function MyBookingsPage() {
             await bookingService.cancelBooking(id);
             fetchBookings();
         } catch (err) {
+            console.error(err);
             alert('Failed to cancel booking.');
         }
     };

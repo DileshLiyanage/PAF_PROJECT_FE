@@ -21,6 +21,7 @@ export default function BookingDetailPage() {
             const res = await bookingService.getBookingById(id);
             setBooking(res.data);
         } catch (err) {
+            console.error(err);
             setError('Booking not found or you don\'t have permission to view it.');
         } finally {
             setLoading(false);
@@ -29,6 +30,7 @@ export default function BookingDetailPage() {
 
     useEffect(() => {
         fetchBooking();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
 
     const handleApprove = async () => {
@@ -37,6 +39,7 @@ export default function BookingDetailPage() {
             await bookingService.updateStatus(id, 'APPROVED');
             fetchBooking();
         } catch (err) {
+            console.error(err);
             alert('Failed to approve booking.');
         }
     };
@@ -50,6 +53,7 @@ export default function BookingDetailPage() {
             await bookingService.updateStatus(id, 'REJECTED', reason);
             fetchBooking();
         } catch (err) {
+            console.error(err);
             alert('Failed to reject booking.');
         }
     };
@@ -60,6 +64,7 @@ export default function BookingDetailPage() {
             await bookingService.cancelBooking(id);
             fetchBooking();
         } catch (err) {
+            console.error(err);
             alert('Failed to cancel booking.');
         }
     };

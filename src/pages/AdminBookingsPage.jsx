@@ -44,6 +44,7 @@ export default function AdminBookingsPage() {
 
     useEffect(() => {
         fetchBookings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [statusFilter, resourceFilter, startDate, endDate, user?.role]);
 
     const handleApprove = async (id) => {
@@ -52,6 +53,7 @@ export default function AdminBookingsPage() {
             await bookingService.updateStatus(id, 'APPROVED');
             fetchBookings();
         } catch (err) {
+            console.error(err);
             alert('Failed to approve booking.');
         }
     };
@@ -65,6 +67,7 @@ export default function AdminBookingsPage() {
             await bookingService.updateStatus(id, 'REJECTED', reason);
             fetchBookings();
         } catch (err) {
+            console.error(err);
             alert('Failed to reject booking.');
         }
     };

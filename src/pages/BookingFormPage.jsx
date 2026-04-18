@@ -50,29 +50,27 @@ export default function BookingFormPage() {
                         console.error(e);
                     }
                 };
-                // check();
+                check(); // Fixed unused defined function
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formData.resourceId, formData.date, formData.startTime, formData.endTime]);
 
     // Better approach for conflict check: trigger on click or debounced
+    /*
     const checkConflict = async () => {
         const { resourceId, date, startTime, endTime } = formData;
         if (!resourceId || !date || !startTime || !endTime) return;
         
         try {
-            // We will do a generic check or just rely on the submit intercepting 409
-            // But the prompt specifically asks to check "in real time"
-            // Let's use the checkAvailability endpoint to just fetch valid slots and see if our selection is in them.
             const res = await bookingService.checkAvailability(resourceId, date, startTime, endTime);
-            // If the user's selected time isn't strictly available, show suggestions
             if (res.data && res.data.length > 0) {
-                 // For now, let's rely on submit to trigger the exact 409 exception which returns standard format
             }
         } catch (err) {
             console.error(err);
         }
     };
+    */
 
     const handleSubmit = async (e) => {
         e.preventDefault();
