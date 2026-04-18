@@ -49,11 +49,14 @@ export default function AdminBookingsPage() {
 
     const handleApprove = async (id) => {
         if (!window.confirm('Approve this booking?')) return;
+        
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'APPROVED' } : b));
         try {
             await bookingService.updateStatus(id, 'APPROVED');
             fetchBookings();
         } catch (err) {
             console.error(err);
+            fetchBookings(); // Revert
             alert('Failed to approve booking.');
         }
     };
@@ -63,11 +66,13 @@ export default function AdminBookingsPage() {
         if (reason === null) return; // User cancelled
         if (!reason.trim()) return alert("Rejection reason is required.");
         
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'REJECTED' } : b));
         try {
             await bookingService.updateStatus(id, 'REJECTED', reason);
             fetchBookings();
         } catch (err) {
             console.error(err);
+            fetchBookings(); // Revert
             alert('Failed to reject booking.');
         }
     };

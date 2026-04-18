@@ -35,11 +35,14 @@ export default function BookingDetailPage() {
 
     const handleApprove = async () => {
         if (!window.confirm('Approve this booking?')) return;
+        
+        setBooking(prev => ({ ...prev, status: 'APPROVED' }));
         try {
             await bookingService.updateStatus(id, 'APPROVED');
             fetchBooking();
         } catch (err) {
             console.error(err);
+            fetchBooking();
             alert('Failed to approve booking.');
         }
     };
@@ -49,22 +52,27 @@ export default function BookingDetailPage() {
         if (reason === null) return; 
         if (!reason.trim()) return alert("Rejection reason is required.");
         
+        setBooking(prev => ({ ...prev, status: 'REJECTED', rejectionReason: reason }));
         try {
             await bookingService.updateStatus(id, 'REJECTED', reason);
             fetchBooking();
         } catch (err) {
             console.error(err);
+            fetchBooking();
             alert('Failed to reject booking.');
         }
     };
 
     const handleCancel = async () => {
         if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+        
+        setBooking(prev => ({ ...prev, status: 'CANCELLED' }));
         try {
             await bookingService.cancelBooking(id);
             fetchBooking();
         } catch (err) {
             console.error(err);
+            fetchBooking();
             alert('Failed to cancel booking.');
         }
     };

@@ -32,11 +32,16 @@ export default function MyBookingsPage() {
 
     const handleCancel = async (id) => {
         if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+        
+        // Optimistically update state
+        setBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'CANCELLED' } : b));
+        
         try {
             await bookingService.cancelBooking(id);
             fetchBookings();
         } catch (err) {
             console.error(err);
+            fetchBookings(); // Revert on failure
             alert('Failed to cancel booking.');
         }
     };
