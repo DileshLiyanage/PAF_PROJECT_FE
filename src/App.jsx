@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SearchProvider } from './context/SearchContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 
@@ -68,9 +69,11 @@ const AppRoutes = () => {
 export default function App() {
     return (
         <AuthProvider>
-            <BrowserRouter>
-                <AppRoutes />
-            </BrowserRouter>
+            <SearchProvider>
+                <BrowserRouter>
+                    <AppRoutes />
+                </BrowserRouter>
+            </SearchProvider>
         </AuthProvider>
     );
 }

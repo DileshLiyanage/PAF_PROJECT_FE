@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { bookingService, resourceService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, Eye } from 'lucide-react';
+import { useSearch } from '../context/SearchContext';
 import './Table.css';
 
 export default function AdminBookingsPage() {
@@ -15,6 +16,7 @@ export default function AdminBookingsPage() {
     const [resourceFilter, setResourceFilter] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const { searchQuery } = useSearch();
 
     const fetchBookings = async () => {
         setLoading(true);
@@ -119,7 +121,18 @@ export default function AdminBookingsPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {bookings.map(booking => (
+                            {(() => {
+                                const filteredBookings = bookings.filter(b => {
+                                    const q = searchQuery.toLowerCase();
+                                    return !q || 
+                                        (b.purpose && b.purpose.toLowerCase().includes(q)) || 
+                                        (b.userName && b.userName.toLowerCase().includes(q)) ||
+                                        (b.userEmail && b.userEmail.toLowerCase().includes(q)) ||
+                                        (b.resourceId && b.resourceId.toLowerCase().includes(q));
+                                });
+                                return (
+                                    <>
+                                        {filteredBookings.map(booking => (
                                 <tr key={booking.id}>
                                     <td>
                                         <div className="user-cell">
@@ -168,16 +181,19 @@ export default function AdminBookingsPage() {
                                                     </button>
                                                 </>
                                             )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            
-                            {bookings.length === 0 && (
-                                <tr>
-                                    <td colSpan="6" className="text-center py-4">No bookings found.</td>
-                                </tr>
-                            )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                                
+                                {filteredBookings.length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" className="text-center py-4">No bookings found.</td>
+                                    </tr>
+                                )}
+                                    </>
+                                );
+                            })()}
                         </tbody>
                     </table>
                 )}

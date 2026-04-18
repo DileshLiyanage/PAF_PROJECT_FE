@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { bookingService } from '../services/api';
 import QRCodeModal from '../components/QRCodeModal';
 import { Calendar, Clock, MapPin, XCircle, Search } from 'lucide-react';
+import { useSearch } from '../context/SearchContext';
 import './Cards.css';
 
 export default function MyBookingsPage() {
@@ -10,6 +11,7 @@ export default function MyBookingsPage() {
     const [filterStatus, setFilterStatus] = useState('ALL');
     const [qrModalToken, setQrModalToken] = useState(null);
     const [qrModalBooking, setQrModalBooking] = useState(null);
+    const { searchQuery } = useSearch();
 
     const fetchBookings = async () => {
         try {
@@ -41,9 +43,14 @@ export default function MyBookingsPage() {
         setQrModalToken(booking.qrCodeToken);
     };
 
-    const filtered = filterStatus === 'ALL' 
-        ? bookings 
-        : bookings.filter(b => b.status === filterStatus);
+    const filtered = bookings.filter(b => {
+        const matchesStatus = filterStatus === 'ALL' || b.status === filterStatus;
+        const q = searchQuery.toLowerCase();
+        const matchesSearch = !q || 
+            (b.purpose && b.purpose.toLowerCase().includes(q)) || 
+            (b.resourceId && b.resourceId.toLowerCase().includes(q));
+        return matchesStatus && matchesSearch;
+    });
 
     if (loading) return <div className="loader">Loading...</div>;
 

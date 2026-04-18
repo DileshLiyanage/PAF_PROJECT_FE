@@ -1,9 +1,11 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useSearch } from '../context/SearchContext';
 import { Search, Menu, UserCircle } from 'lucide-react';
 
 export default function Header({ toggleSidebar }) {
     const { user, toggleRole } = useAuth();
+    const { searchQuery, setSearchQuery } = useSearch();
 
     return (
         <header className="app-header">
@@ -13,7 +15,12 @@ export default function Header({ toggleSidebar }) {
                 </button>
                 <div className="search-bar">
                     <Search size={18} className="search-icon" />
-                    <input type="text" placeholder="Search resources or bookings..." />
+                    <input 
+                        type="text" 
+                        placeholder="Search resources or bookings..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                 </div>
             </div>
             
