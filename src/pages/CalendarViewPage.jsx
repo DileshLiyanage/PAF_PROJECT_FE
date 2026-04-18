@@ -26,6 +26,8 @@ export default function CalendarViewPage() {
     const navigate = useNavigate();
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [view, setView] = useState('month');
+    const [date, setDate] = useState(new Date());
 
     useEffect(() => {
         const fetchBookings = async () => {
@@ -103,7 +105,10 @@ export default function CalendarViewPage() {
                         eventPropGetter={eventStyleGetter}
                         onSelectEvent={handleSelectEvent}
                         views={['month', 'week', 'day']}
-                        defaultView="month"
+                        view={view}
+                        onView={setView}
+                        date={date}
+                        onNavigate={setDate}
                     />
                 )}
             </div>
