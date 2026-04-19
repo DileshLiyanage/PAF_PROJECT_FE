@@ -303,7 +303,7 @@ const TicketCreate = () => {
       className="min-h-screen bg-cover bg-center bg-no-repeat px-4 py-10"
       style={{
         backgroundImage:
-          "linear-gradient(125deg, rgba(9, 20, 41, 0.76), rgba(33, 87, 141, 0.58)), url('https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1800&q=80')"
+          "linear-gradient(125deg, rgba(9, 20, 41, 0.76), rgba(33, 87, 141, 0.58)), url('/images/create_ticket.jpg')"
       }}
     >
       <div className="mx-auto max-w-4xl">

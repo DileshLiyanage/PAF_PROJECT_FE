@@ -53,13 +53,19 @@ const getStatusPillClass = (status) => {
   return 'bg-indigo-100 text-indigo-700 border-indigo-300/70';
 };
 
-const getTicketPageBackground = (isSubmittedTicketsPage, isMyTicketsPage) => {
+const getTicketPageBackground = (pathname, isSubmittedTicketsPage, isMyTicketsPage) => {
+  const assignedTicketsBackground = "linear-gradient(125deg, rgba(9, 20, 41, 0.78), rgba(33, 87, 141, 0.62)), url('/images/assigned_tickets.jpg')";
+
+  if (pathname === '/technician/assigned-tickets') {
+    return assignedTicketsBackground;
+  }
+
   if (isSubmittedTicketsPage) {
-    return "linear-gradient(125deg, rgba(5, 17, 38, 0.86), rgba(25, 58, 105, 0.66)), url('https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1800&q=80')";
+    return "linear-gradient(125deg, rgba(5, 17, 38, 0.86), rgba(25, 58, 105, 0.66)), url('/images/submitted_tickets.jpg')";
   }
 
   if (isMyTicketsPage) {
-    return "linear-gradient(125deg, rgba(4, 18, 41, 0.82), rgba(18, 61, 122, 0.64)), url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1800&q=80')";
+    return "linear-gradient(125deg, rgba(4, 18, 41, 0.82), rgba(18, 61, 122, 0.64)), url('/images/my_tickets.jpg')";
   }
 
   return "linear-gradient(125deg, rgba(9, 20, 41, 0.76), rgba(33, 87, 141, 0.58)), url('https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1800&q=80')";
@@ -593,7 +599,7 @@ const TicketList = () => {
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-no-repeat px-4 py-8 md:px-8"
-      style={{ backgroundImage: getTicketPageBackground(isSubmittedTicketsPage, isMyTicketsPage) }}
+      style={{ backgroundImage: getTicketPageBackground(location.pathname, isSubmittedTicketsPage, isMyTicketsPage) }}
     >
       <style>{modalScrollbarStyles}</style>
       <div className="mx-auto max-w-6xl">
