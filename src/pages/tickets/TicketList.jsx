@@ -72,6 +72,122 @@ const getPriorityFilterClass = (priority, active) => {
   return active ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-slate-100 text-slate-700';
 };
 
+const getPriorityKey = (priority) => String(priority || '').toUpperCase();
+
+const FIRST_RESPONSE_SLA_MS = {
+  LOW: 2 * 60 * 60 * 1000,
+  MEDIUM: 1 * 60 * 60 * 1000,
+  HIGH: 30 * 60 * 1000
+};
+
+const RESOLUTION_SLA_MS = {
+  LOW: 48 * 60 * 60 * 1000,
+  MEDIUM: 24 * 60 * 60 * 1000,
+  HIGH: 12 * 60 * 60 * 1000
+};
+
+const toMs = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const formatDuration = (milliseconds) => {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) {
+    return `${days}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+  }
+
+  return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+};
+
+const getFirstResponseTimer = (ticket, nowMs) => {
+  const createdMs = toMs(ticket.createdAt);
+  if (createdMs == null) return null;
+
+  const priority = getPriorityKey(ticket.priority);
+  const fallbackSla = FIRST_RESPONSE_SLA_MS[priority] || FIRST_RESPONSE_SLA_MS.LOW;
+  const deadlineMs = toMs(ticket.firstResponseDeadlineAt) ?? (createdMs + fallbackSla);
+  const status = getPriorityKey(ticket.status);
+  const firstResponseMs = toMs(ticket.firstResponseAt);
+  const fallbackFirstResponseMs = status !== 'OPEN' ? toMs(ticket.updatedAt) : null;
+  const effectiveFirstResponseMs = firstResponseMs ?? fallbackFirstResponseMs;
+
+  if (effectiveFirstResponseMs != null) {
+    const completedIn = formatDuration(effectiveFirstResponseMs - createdMs);
+    const completedLate = effectiveFirstResponseMs > deadlineMs;
+    const lateBy = completedLate ? ` (late by ${formatDuration(effectiveFirstResponseMs - deadlineMs)})` : '';
+    return {
+      label: `First responded in: ${completedIn}${lateBy}`,
+      className: completedLate ? 'text-rose-500' : 'text-amber-400'
+    };
+  }
+
+  const remainingMs = deadlineMs - nowMs;
+  if (remainingMs >= 0) {
+    return {
+      label: `First response in: ${formatDuration(remainingMs)}`,
+      className: 'text-amber-400'
+    };
+  }
+
+  return {
+    label: `First response overdue by: ${formatDuration(Math.abs(remainingMs))}`,
+    className: 'text-rose-500'
+  };
+};
+
+const getResolutionTimer = (ticket, nowMs) => {
+  const priority = getPriorityKey(ticket.priority);
+  const status = getPriorityKey(ticket.status);
+  const fallbackSla = RESOLUTION_SLA_MS[priority] || RESOLUTION_SLA_MS.LOW;
+  const hasAssignedTechnician = Boolean(String(ticket.assignedTo || '').trim());
+  let resolutionStartMs = toMs(ticket.resolutionStartedAt)
+    ?? (hasAssignedTechnician ? toMs(ticket.createdAt) : null);
+  const resolutionDeadlineMs = toMs(ticket.resolutionDeadlineAt)
+    ?? (resolutionStartMs != null ? resolutionStartMs + fallbackSla : null);
+
+  if (resolutionDeadlineMs == null) {
+    return null;
+  }
+
+  const resolvedMs = toMs(ticket.resolvedAt);
+  const fallbackResolvedMs = (status === 'RESOLVED' || status === 'CLOSED') ? toMs(ticket.updatedAt) : null;
+  const effectiveResolvedMs = resolvedMs ?? fallbackResolvedMs;
+
+  if (effectiveResolvedMs != null && resolutionStartMs != null && effectiveResolvedMs < resolutionStartMs) {
+    resolutionStartMs = toMs(ticket.createdAt) ?? resolutionStartMs;
+  }
+
+  if (effectiveResolvedMs != null && resolutionStartMs != null) {
+    const completedLate = effectiveResolvedMs > resolutionDeadlineMs;
+    const completedIn = formatDuration(effectiveResolvedMs - resolutionStartMs);
+    const lateBy = completedLate ? ` (late by ${formatDuration(effectiveResolvedMs - resolutionDeadlineMs)})` : '';
+    return {
+      label: `Resolved in: ${completedIn}${lateBy}`,
+      className: completedLate ? 'text-rose-500' : 'text-sky-400'
+    };
+  }
+
+  const remainingMs = resolutionDeadlineMs - nowMs;
+  if (remainingMs >= 0) {
+    return {
+      label: `Resolution in: ${formatDuration(remainingMs)}`,
+      className: 'text-sky-400'
+    };
+  }
+
+  return {
+    label: `Resolution overdue by: ${formatDuration(Math.abs(remainingMs))}`,
+    className: 'text-rose-500'
+  };
+};
+
 const toDisplayTicketId = (index) => `Ticket${String(index + 1).padStart(4, '0')}`;
 
 const getDisplayTicketIdByRecord = (allTickets, recordId) => {
@@ -183,8 +299,10 @@ const TicketList = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [inlineStatusUpdateId, setInlineStatusUpdateId] = useState(null);
+  const [taskCompleteUpdateId, setTaskCompleteUpdateId] = useState(null);
   const [technicianOptions, setTechnicianOptions] = useState([]);
   const [techniciansLoading, setTechniciansLoading] = useState(false);
+  const [clockMs, setClockMs] = useState(Date.now());
 
   const prioritySummary = {
     LOW: tickets.filter((ticket) => (ticket.priority || '').toUpperCase() === 'LOW').length,
@@ -231,6 +349,14 @@ const TicketList = () => {
     const intervalId = setInterval(fetchTickets, 30000);
     return () => clearInterval(intervalId);
   }, [currentUserId, currentUserTokens, isAssignedTicketsPage, isMyTicketsPage]);
+
+  useEffect(() => {
+    const timerId = setInterval(() => {
+      setClockMs(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, []);
 
   useEffect(() => {
     if (!isSubmittedTicketsPage || !isStaff) {
@@ -343,6 +469,25 @@ const TicketList = () => {
       window.alert(`Update failed: ${message}`);
     } finally {
       setInlineStatusUpdateId(null);
+    }
+  };
+
+  const handleTechnicianTaskCompleted = async (ticketId) => {
+    try {
+      setTaskCompleteUpdateId(ticketId);
+      const response = await axiosInstance.patch(`/api/tickets/${ticketId}`, null, {
+        params: { status: 'RESOLVED' }
+      });
+      setTickets((prev) => prev.map((ticket) => (ticket.id === ticketId ? response.data : ticket)));
+      if (selectedTicket?.id === ticketId) {
+        syncUpdatedTicket(response.data);
+      }
+      window.alert('Task marked as completed. Admin can now close this ticket.');
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to mark task as completed';
+      window.alert(`Update failed: ${message}`);
+    } finally {
+      setTaskCompleteUpdateId(null);
     }
   };
 
@@ -499,6 +644,13 @@ const TicketList = () => {
             {visibleTickets.map((ticket, index) => {
               const categoryParts = extractCategoryParts(ticket.category);
               const ticketStatus = (ticket.status || 'OPEN').toUpperCase();
+              const canInlineUpdateStatus = currentRole === 'ADMIN' && isSubmittedTicketsPage;
+              const canTechnicianCompleteTask = currentRole === 'TECHNICIAN'
+                && isAssignedTicketsPage
+                && !['RESOLVED', 'CLOSED', 'REJECTED'].includes(ticketStatus);
+              const showFirstResponseTimer = isMyTicketsPage || isSubmittedTicketsPage;
+              const firstResponseTimer = showFirstResponseTimer ? getFirstResponseTimer(ticket, clockMs) : null;
+              const resolutionTimer = getResolutionTimer(ticket, clockMs);
               return (
               <button
                 key={ticket.id}
@@ -520,23 +672,59 @@ const TicketList = () => {
                     <p className="mt-1 text-sm text-slate-700">
                       <span className="font-semibold">Item Code:</span> {ticket.resourceId || 'N/A'}
                     </p>
+                    {firstResponseTimer && (
+                      <p className={`mt-2 text-base font-extrabold tracking-wide ${firstResponseTimer.className}`}>
+                        {firstResponseTimer.label}
+                      </p>
+                    )}
+                    {resolutionTimer && (
+                      <p className={`mt-1 text-base font-extrabold tracking-wide ${resolutionTimer.className}`}>
+                        {resolutionTimer.label}
+                      </p>
+                    )}
                   </div>
 
                   <div className="md:self-center md:text-right">
-                    <select
-                      value={ticketStatus}
-                      onClick={(e) => e.stopPropagation()}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onChange={(e) => handleInlineStatusUpdate(ticket.id, e.target.value)}
-                      disabled={inlineStatusUpdateId === ticket.id}
-                      className={`inline-flex min-w-[140px] justify-center rounded-full border px-4 py-2 text-sm font-bold tracking-wide outline-none ${getStatusPillClass(ticketStatus)}`}
-                    >
-                      <option value="OPEN">OPEN</option>
-                      <option value="IN_PROGRESS">IN_PROGRESS</option>
-                      <option value="RESOLVED">RESOLVED</option>
-                      <option value="CLOSED">CLOSED</option>
-                      <option value="REJECTED">REJECTED</option>
-                    </select>
+                    <div className="flex flex-wrap justify-end gap-2">
+                    {canTechnicianCompleteTask && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleTechnicianTaskCompleted(ticket.id);
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                        disabled={taskCompleteUpdateId === ticket.id}
+                        className="inline-flex min-w-[140px] justify-center rounded-full border border-emerald-500 bg-emerald-500 px-4 py-2 text-sm font-bold tracking-wide text-white transition hover:bg-emerald-600 disabled:opacity-60"
+                      >
+                        {taskCompleteUpdateId === ticket.id ? 'Completing...' : 'Task Completed'}
+                      </button>
+                    )}
+                    {canInlineUpdateStatus ? (
+                      <select
+                        value={ticketStatus}
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onChange={(e) => handleInlineStatusUpdate(ticket.id, e.target.value)}
+                        disabled={inlineStatusUpdateId === ticket.id}
+                        className={`inline-flex min-w-[140px] justify-center rounded-full border px-4 py-2 text-sm font-bold tracking-wide outline-none ${getStatusPillClass(ticketStatus)}`}
+                      >
+                        <option value="OPEN">OPEN</option>
+                        <option value="IN_PROGRESS">IN_PROGRESS</option>
+                        <option value="RESOLVED">RESOLVED</option>
+                        <option value="CLOSED">CLOSED</option>
+                        <option value="REJECTED">REJECTED</option>
+                      </select>
+                    ) : (
+                      <span className={`inline-flex min-w-[140px] justify-center rounded-full border px-4 py-2 text-sm font-bold tracking-wide ${getStatusPillClass(ticketStatus)}`}>
+                        {ticketStatus}
+                      </span>
+                    )}
+                    </div>
                     <p className="mt-2 text-xs text-slate-500">Created: {formatDateTime(ticket.createdAt)}</p>
                   </div>
                 </div>
