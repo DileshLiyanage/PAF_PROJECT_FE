@@ -130,7 +130,7 @@ const getFirstResponseTimer = (ticket, nowMs) => {
     const lateBy = completedLate ? ` (late by ${formatDuration(effectiveFirstResponseMs - deadlineMs)})` : '';
     return {
       label: `First responded in: ${completedIn}${lateBy}`,
-      className: completedLate ? 'text-rose-500' : 'text-amber-400'
+      className: completedLate ? 'text-red-800' : 'text-amber-400'
     };
   }
 
@@ -144,7 +144,7 @@ const getFirstResponseTimer = (ticket, nowMs) => {
 
   return {
     label: `First response overdue by: ${formatDuration(Math.abs(remainingMs))}`,
-    className: 'text-rose-500'
+    className: 'text-red-800'
   };
 };
 
@@ -176,7 +176,7 @@ const getResolutionTimer = (ticket, nowMs) => {
     const lateBy = completedLate ? ` (late by ${formatDuration(effectiveResolvedMs - resolutionDeadlineMs)})` : '';
     return {
       label: `Resolved in: ${completedIn}${lateBy}`,
-      className: completedLate ? 'text-rose-500' : 'text-sky-400'
+      className: completedLate ? 'text-red-800' : 'text-sky-400'
     };
   }
 
@@ -190,7 +190,7 @@ const getResolutionTimer = (ticket, nowMs) => {
 
   return {
     label: `Resolution overdue by: ${formatDuration(Math.abs(remainingMs))}`,
-    className: 'text-rose-500'
+    className: 'text-red-300'
   };
 };
 
