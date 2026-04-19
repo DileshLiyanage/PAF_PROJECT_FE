@@ -251,6 +251,26 @@ const formatAssignedProfile = (assignedTo) => {
   return { name, email, raw };
 };
 
+const resolveTicketImageUrl = (url) => {
+  const value = String(url || '').trim();
+  if (!value) return '';
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const apiBase = String(axiosInstance.defaults.baseURL || '').replace(/\/$/, '');
+  if (!apiBase) {
+    return value;
+  }
+
+  if (value.startsWith('/')) {
+    return `${apiBase}${value}`;
+  }
+
+  return `${apiBase}/${value}`;
+};
+
 const modalScrollbarStyles = `
   .ticket-modal-scroll::-webkit-scrollbar {
     width: 6px;
@@ -303,6 +323,7 @@ const TicketList = () => {
   const [technicianOptions, setTechnicianOptions] = useState([]);
   const [techniciansLoading, setTechniciansLoading] = useState(false);
   const [clockMs, setClockMs] = useState(Date.now());
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
 
   const prioritySummary = {
     LOW: tickets.filter((ticket) => (ticket.priority || '').toUpperCase() === 'LOW').length,
@@ -418,6 +439,7 @@ const TicketList = () => {
   const closeModal = () => {
     setSelectedTicket(null);
     setModalError('');
+    setPreviewImageUrl('');
   };
 
   const syncUpdatedTicket = (updated) => {
@@ -814,9 +836,19 @@ const TicketList = () => {
               {selectedTicket.imageUrls?.length ? (
                 <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3">
                   {selectedTicket.imageUrls.map((url) => (
-                    <a key={url} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-white/70">
-                      <img src={url} alt="ticket evidence" className="h-24 w-full object-cover" />
-                    </a>
+                    <button
+                      key={url}
+                      type="button"
+                      onClick={() => setPreviewImageUrl(resolveTicketImageUrl(url))}
+                      className="block overflow-hidden rounded-xl border border-white/70 text-left"
+                    >
+                      <img
+                        src={resolveTicketImageUrl(url)}
+                        alt="ticket evidence"
+                        className="h-24 w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
                   ))}
                 </div>
               ) : (
@@ -1002,6 +1034,39 @@ const TicketList = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/80 p-4"
+          onClick={() => setPreviewImageUrl('')}
+          role="presentation"
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-4xl"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ticket image preview"
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewImageUrl('')}
+              className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-600"
+              aria-label="Close image preview"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M6 6L18 18" />
+                <path d="M18 6L6 18" />
+              </svg>
+            </button>
+            <img
+              src={previewImageUrl}
+              alt="Ticket evidence preview"
+              className="max-h-[90vh] w-full rounded-2xl border border-white/20 object-contain shadow-2xl"
+            />
           </div>
         </div>
       )}
